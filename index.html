@@ -7,74 +7,80 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0ee; color: #1a1a1a; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
 
-/* HEADER */
-.header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 10px 16px; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
-.header h1 { font-size: 15px; font-weight: 600; color: #1a1a1a; }
-.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.last-update { font-size: 11px; color: #999; }
-.refresh-btn { background: none; border: 1px solid #ddd; border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #666; cursor: pointer; }
-.refresh-btn:active { background: #f5f5f5; }
-
-/* TITRE DE PAGE */
-.page-title { padding: 14px 16px 4px; font-size: 18px; font-weight: 600; color: #1a1a1a; }
-.page-subtitle { padding: 0 16px 10px; font-size: 12px; color: #999; }
-
-/* KPI BLOCS PRINCIPAUX (temp, pluie, vent) */
-.kpi-main-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1px; background: #e0e0e0; margin: 0 16px 12px; border-radius: 12px; overflow: hidden; }
-.kpi-main { background: #fff; padding: 14px 12px; }
-.kpi-main-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
-.kpi-main-value { font-size: 32px; font-weight: 600; color: #1a1a1a; line-height: 1; }
-.kpi-main-unit { font-size: 16px; font-weight: 400; color: #888; }
-.kpi-main-sub { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
-.kpi-main-sub span { color: #666; }
-
-/* KPI SECONDAIRES (ensoleillement, humidité, pression) */
-.kpi-sec-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1px; background: #e0e0e0; margin: 0 16px 16px; border-radius: 12px; overflow: hidden; }
-.kpi-sec { background: #fff; padding: 12px 10px; text-align: center; }
-.kpi-sec-icon { font-size: 22px; margin-bottom: 4px; }
-.kpi-sec-value { font-size: 20px; font-weight: 600; color: #1a1a1a; line-height: 1; }
-.kpi-sec-unit { font-size: 12px; color: #888; }
-.kpi-sec-label { font-size: 10px; color: #aaa; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
-.kpi-sec-sub { font-size: 10px; color: #bbb; margin-top: 3px; line-height: 1.5; }
-
-/* GRAPHIQUES */
-.charts-section { padding: 0 16px; }
-.chart-block { margin-bottom: 12px; }
-.chart-title { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
-.chart-wrap { background: #fff; border-radius: 10px; padding: 12px 10px 8px; }
-
-/* LOADING / ERROR */
-.loading { text-align: center; padding: 3rem 1rem; color: #bbb; font-size: 14px; }
-.spinner { width: 28px; height: 28px; border: 2.5px solid #e5e5e5; border-top-color: #378ADD; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff0f0; border-radius: 10px; padding: 12px 14px; margin: 16px; font-size: 13px; color: #c0392b; border-left: 3px solid #e74c3c; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-@media (prefers-color-scheme: dark) {
-  body { background: #181818; color: #f0f0f0; }
-  .header { background: #222; border-color: #333; }
-  .header h1 { color: #f0f0f0; }
-  .kpi-main, .kpi-sec, .chart-wrap { background: #222; }
-  .kpi-main-grid, .kpi-sec-grid { background: #333; }
-  .kpi-main-value, .kpi-sec-value { color: #f0f0f0; }
-  .refresh-btn { border-color: #444; color: #aaa; }
-  .error { background: #2a1515; }
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px 20px 28px;
+  color: white;
 }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.header-location { font-size: 13px; opacity: 0.8; letter-spacing: 0.05em; text-transform: uppercase; }
+.header-title { font-size: 22px; font-weight: 700; margin-top: 2px; }
+.header-time { font-size: 12px; opacity: 0.75; margin-top: 3px; }
+.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; backdrop-filter: blur(4px); }
+.refresh-btn:active { background: rgba(255,255,255,0.35); }
+
+.main-temp-card {
+  background: white;
+  margin: -16px 16px 0;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.main-temp-left { flex: 1; }
+.main-temp-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.main-temp-value { font-size: 52px; font-weight: 300; color: #1a1a2e; line-height: 1; }
+.main-temp-value sup { font-size: 22px; font-weight: 400; color: #888; vertical-align: super; }
+.main-temp-sub { font-size: 12px; color: #aaa; margin-top: 6px; }
+.main-temp-sub b { color: #555; }
+.main-temp-icon { font-size: 56px; line-height: 1; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; padding: 16px 16px 0; }
+.kpi-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.kpi-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.kpi-icon.blue { background: #e8f4ff; }
+.kpi-icon.teal { background: #e6f9f3; }
+.kpi-icon.amber { background: #fff8e6; }
+.kpi-icon.purple { background: #f3eeff; }
+.kpi-card-title { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 28px; font-weight: 600; color: #1a1a2e; line-height: 1; }
+.kpi-card-unit { font-size: 14px; font-weight: 400; color: #aaa; }
+.kpi-card-sub { font-size: 11px; color: #bbb; margin-top: 5px; line-height: 1.7; }
+.kpi-card-sub b { color: #888; font-weight: 500; }
+
+.section-header { padding: 20px 16px 8px; font-size: 13px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; }
+.chart-card {
+  background: white;
+  border-radius: 16px;
+  margin: 0 16px 12px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.chart-card-title { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.chart-card-title span { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+.chart-card-title em { font-size: 11px; color: #bbb; font-style: normal; margin-left: auto; }
+
+.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
+.spinner { width: 32px; height: 32px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pb { padding-bottom: 24px; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>⛅ Météo — Cintré</h1>
-  <div class="header-right">
-    <div class="last-update" id="last-update">Chargement...</div>
-    <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
-  </div>
-</div>
-
-<div id="content">
-  <div class="loading"><div class="spinner"></div>Connexion à BigQuery...</div>
+<div id="app">
+  <div class="loading"><div class="spinner"></div>Chargement...</div>
 </div>
 
 <script>
@@ -86,87 +92,66 @@ const SA = {
 
 let charts = {};
 
-function b64url(str) {
-  return btoa(unescape(encodeURIComponent(str))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-}
-function b64urlBytes(arr) {
-  let s = ''; arr.forEach(b => s += String.fromCharCode(b));
-  return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-}
+function b64url(str) { return btoa(unescape(encodeURIComponent(str))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
+function b64urlBytes(arr) { let s=''; arr.forEach(b=>s+=String.fromCharCode(b)); return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
 
 async function getToken() {
-  const now = Math.floor(Date.now() / 1000);
-  const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const payload = b64url(JSON.stringify({
-    iss: SA.client_email,
-    scope: "https://www.googleapis.com/auth/bigquery",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600, iat: now
-  }));
-  const sigInput = header + "." + payload;
-  const pemBody = SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
-  const binaryDer = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-  const cryptoKey = await crypto.subtle.importKey("pkcs8", binaryDer.buffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-  const sigBytes = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(sigInput));
-  const jwt = sigInput + "." + b64urlBytes(new Uint8Array(sigBytes));
-  const resp = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
-  });
-  const data = await resp.json();
-  if (!data.access_token) throw new Error("Auth échouée : " + JSON.stringify(data));
-  return data.access_token;
+  const now = Math.floor(Date.now()/1000);
+  const h = b64url(JSON.stringify({alg:"RS256",typ:"JWT"}));
+  const p = b64url(JSON.stringify({iss:SA.client_email,scope:"https://www.googleapis.com/auth/bigquery",aud:"https://oauth2.googleapis.com/token",exp:now+3600,iat:now}));
+  const sig = h+"."+p;
+  const pem = SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
+  const der = Uint8Array.from(atob(pem),c=>c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8",der.buffer,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);
+  const bytes = await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,new TextEncoder().encode(sig));
+  const jwt = sig+"."+b64urlBytes(new Uint8Array(bytes));
+  const r = await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:`grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`});
+  const d = await r.json();
+  if(!d.access_token) throw new Error("Auth: "+JSON.stringify(d));
+  return d.access_token;
 }
 
 async function queryBQ(token, sql) {
-  const url = `https://bigquery.googleapis.com/bigquery/v2/projects/${SA.project_id}/queries`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: sql, useLegacySql: false, timeoutMs: 15000, location: "europe-west9" })
-  });
-  const data = await resp.json();
-  if (data.error) throw new Error(data.error.message);
-  return data;
+  const r = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${SA.project_id}/queries`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({query:sql,useLegacySql:false,timeoutMs:15000,location:"europe-west9"})});
+  const d = await r.json();
+  if(d.error) throw new Error(d.error.message);
+  return d;
 }
 
-function parseRows(result) {
-  if (!result.rows) return [];
-  const fields = result.schema.fields.map(f => f.name);
-  return result.rows.map(r => { const o = {}; r.f.forEach((v,i) => o[fields[i]] = v.v); return o; });
+function parseRows(res) {
+  if(!res.rows) return [];
+  const f = res.schema.fields.map(f=>f.name);
+  return res.rows.map(r=>{const o={};r.f.forEach((v,i)=>o[f[i]]=v.v);return o;});
 }
-
-function pad(n) { return String(n).padStart(2,'0'); }
 
 function makeChart(id, type, labels, datasets, opts={}) {
-  if (charts[id]) charts[id].destroy();
+  if(charts[id]) charts[id].destroy();
   const ctx = document.getElementById(id).getContext('2d');
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
-  const textColor = isDark ? '#666' : '#bbb';
-  charts[id] = new Chart(ctx, {
-    type, data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: { legend: { display: datasets.length > 1, labels: { color: textColor, font: { size: 11 }, boxWidth: 10, padding: 8 } } },
-      scales: {
-        x: { ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 7 }, grid: { color: gridColor } },
-        y: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor }, ...(opts.yBeginAtZero !== false ? { beginAtZero: true } : {}) }
-      }
-    }
-  });
+  const gc = 'rgba(0,0,0,0.04)', tc = '#ccc';
+  charts[id] = new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:datasets.length>1,labels:{color:'#bbb',font:{size:11},boxWidth:10,padding:8}}},scales:{x:{ticks:{color:tc,font:{size:10},maxTicksLimit:7},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10}},grid:{color:gc},...(opts.y0!==false?{beginAtZero:true}:{})},}}});
 }
 
+function tempIcon(t) {
+  if(t===null) return '🌡️';
+  if(t>=35) return '🥵';
+  if(t>=25) return '☀️';
+  if(t>=15) return '🌤️';
+  if(t>=5)  return '🌥️';
+  return '🥶';
+}
+
+function fmt(v,d=1) { return (v!==null&&v!==''&&v!==undefined)?parseFloat(v).toFixed(d):'—'; }
+function n(v) { return (v!==null&&v!==''&&v!==undefined)?parseFloat(v):null; }
+function pad(x) { return String(x).padStart(2,'0'); }
+
 async function loadData() {
-  document.getElementById('last-update').textContent = 'Actualisation...';
   try {
     const token = await getToken();
-    const [kpiRes, chartRes] = await Promise.all([
-      queryBQ(token, `
+    const [kpiRes, lastRes, chartRes] = await Promise.all([
+      queryBQ(token,`
         SELECT
           MAX(tempHigh)    AS temp_max,
           MIN(tempLow)     AS temp_min,
-          AVG(tempAvg)     AS temp_moy,
           SUM(somme)       AS pluie_total,
           MAX(precipRate)  AS pluie_rate_max,
           MAX(windgustHigh) AS vent_rafale,
@@ -174,23 +159,25 @@ async function loadData() {
           AVG(humidityAvg) AS humidite_moy,
           MAX(humidityHigh) AS humidite_max,
           MIN(humidityLow)  AS humidite_min,
-          MAX(pressureMax) AS pression,
-          MAX(pressureMax) AS pression_max,
-          MIN(pressureMin) AS pression_min,
-          SUM(CASE WHEN solarRadiationHigh > 120 THEN 5.0/60.0 ELSE 0 END) AS ensoleillement_h,
-          MAX(obsTimeLocal) AS derniere_obs
+          MAX(pressureMax)  AS pression_max,
+          MIN(pressureMin)  AS pression_min,
+          SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h
         FROM \`meteo_cintre.data_5_min_today\`
       `),
-      queryBQ(token, `
+      queryBQ(token,`
+        SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel,
+               humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle,
+               FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure
+        FROM \`meteo_cintre.data_5_min_today\`
+        ORDER BY obsTimeLocal DESC LIMIT 1
+      `),
+      queryBQ(token,`
         SELECT
-          FORMAT_TIMESTAMP('%H:%M', obsTimeLocal, 'Europe/Paris') AS heure,
+          FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure,
           tempAvg, tempHigh, tempLow,
-          somme            AS pluie,
-          precipRate       AS pluie_rate,
-          windspeedAvg     AS vent,
-          windgustHigh     AS rafale,
-          humidityAvg      AS humidite,
-          pressureMax      AS pression,
+          somme AS pluie, precipRate AS pluie_rate,
+          windspeedAvg AS vent, windgustHigh AS rafale,
+          humidityAvg AS humidite,
           solarRadiationHigh AS soleil
         FROM \`meteo_cintre.data_5_min_today\`
         ORDER BY obsTimeLocal ASC
@@ -198,119 +185,133 @@ async function loadData() {
     ]);
 
     const k = parseRows(kpiRes)[0] || {};
+    const last = parseRows(lastRes)[0] || {};
     const rows = parseRows(chartRes);
-    const labels = rows.map(r => r.heure);
-    const n = v => (v !== null && v !== '' && v !== undefined) ? parseFloat(v) : null;
-    const fmt = (v, d=1) => (v !== null && v !== '') ? parseFloat(v).toFixed(d) : '—';
+    const labels = rows.map(r=>r.heure);
 
-    // Dernière obs heure
-    const lastObs = k.derniere_obs ? k.derniere_obs.substring(11,16) : '—';
+    const tempActuelle = n(last.temp_actuelle);
+    const ensH = parseFloat(k.ens_h||0);
+    const ensHH = Math.floor(ensH);
+    const ensMM = Math.round((ensH-ensHH)*60);
+    const ensStr = ensHH>0 ? `${ensHH}H${pad(ensMM)}` : `${ensMM}min`;
 
-    // Ensoleillement formaté en HhMM
-    const ensSec = k.ensoleillement_h ? parseFloat(k.ensoleillement_h) : 0;
-    const ensH = Math.floor(ensSec);
-    const ensMin = Math.round((ensSec - ensH) * 60);
-    const ensStr = ensH > 0 ? `${ensH}H${pad(ensMin)}` : `${ensMin}min`;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    const timeStr = last.heure || now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
-    document.getElementById('content').innerHTML = `
-      <div class="page-title">Suivi journée en cours</div>
-      <div class="page-subtitle">Dernière donnée : ${lastObs}</div>
-
-      <div class="kpi-main-grid">
-        <div class="kpi-main">
-          <div class="kpi-main-label">🌡 Température actuel</div>
-          <div class="kpi-main-value">${fmt(k.temp_moy)}<span class="kpi-main-unit">°C</span></div>
-          <div class="kpi-main-sub">
-            Max : <span>${fmt(k.temp_max)}°C</span><br>
-            Min : <span>${fmt(k.temp_min)}°C</span>
+    document.getElementById('app').innerHTML = `
+      <div class="header">
+        <div class="header-top">
+          <div>
+            <div class="header-location">📍 Cintré, Bretagne</div>
+            <div class="header-title">Suivi journée en cours</div>
+            <div class="header-time">${dateStr} · dernière donnée ${timeStr}</div>
           </div>
-        </div>
-        <div class="kpi-main">
-          <div class="kpi-main-label">💧 Pluie du jour</div>
-          <div class="kpi-main-value">${fmt(k.pluie_total)}<span class="kpi-main-unit">mm</span></div>
-          <div class="kpi-main-sub">
-            Intensité max : <span>${fmt(k.pluie_rate_max)} mm/h</span>
-          </div>
-        </div>
-        <div class="kpi-main">
-          <div class="kpi-main-label">💨 Vent moyen</div>
-          <div class="kpi-main-value">${fmt(k.vent_moy)}<span class="kpi-main-unit">km/h</span></div>
-          <div class="kpi-main-sub">
-            Rafale max : <span>${fmt(k.vent_rafale)} km/h</span>
-          </div>
-        </div>
-        <div class="kpi-main" style="visibility:hidden;"></div>
-      </div>
-
-      <div class="kpi-sec-grid">
-        <div class="kpi-sec">
-          <div class="kpi-sec-icon">☀️</div>
-          <div class="kpi-sec-value">${ensStr}</div>
-          <div class="kpi-sec-label">Ensoleillement</div>
-        </div>
-        <div class="kpi-sec">
-          <div class="kpi-sec-icon">💦</div>
-          <div class="kpi-sec-value">${fmt(k.humidite_moy, 0)}<span class="kpi-sec-unit">%</span></div>
-          <div class="kpi-sec-label">Humidité</div>
-          <div class="kpi-sec-sub">Max : ${fmt(k.humidite_max, 0)}%<br>Min : ${fmt(k.humidite_min, 0)}%</div>
-        </div>
-        <div class="kpi-sec">
-          <div class="kpi-sec-icon">🔵</div>
-          <div class="kpi-sec-value" style="font-size:16px;">${fmt(k.pression, 0)}<span class="kpi-sec-unit">hPa</span></div>
-          <div class="kpi-sec-label">Pression</div>
-          <div class="kpi-sec-sub">Max : ${fmt(k.pression_max, 0)}<br>Min : ${fmt(k.pression_min, 0)}</div>
+          <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
         </div>
       </div>
 
-      <div class="charts-section">
-        <div class="chart-block">
-          <div class="chart-title">Température</div>
-          <div class="chart-wrap"><canvas id="chartTemp" height="150"></canvas></div>
+      <div class="main-temp-card">
+        <div class="main-temp-left">
+          <div class="main-temp-label">Température actuelle</div>
+          <div class="main-temp-value">${fmt(tempActuelle)}<sup>°C</sup></div>
+          <div class="main-temp-sub">
+            ↑ <b>${fmt(k.temp_max)}°</b> &nbsp;·&nbsp; ↓ <b>${fmt(k.temp_min)}°</b>
+          </div>
         </div>
-        <div class="chart-block">
-          <div class="chart-title">Pluie</div>
-          <div class="chart-wrap"><canvas id="chartPluie" height="110"></canvas></div>
+        <div class="main-temp-icon">${tempIcon(tempActuelle)}</div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="kpi-icon blue">🌧️</div>
+            <div class="kpi-card-title">Pluie du jour</div>
+          </div>
+          <div class="kpi-card-value">${fmt(k.pluie_total)}<span class="kpi-card-unit"> mm</span></div>
+          <div class="kpi-card-sub">Intensité max<br><b>${fmt(k.pluie_rate_max)} mm/h</b></div>
         </div>
-        <div class="chart-block">
-          <div class="chart-title">Vent</div>
-          <div class="chart-wrap"><canvas id="chartVent" height="110"></canvas></div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="kpi-icon teal">💨</div>
+            <div class="kpi-card-title">Vent</div>
+          </div>
+          <div class="kpi-card-value">${fmt(n(last.vent_actuel),1)}<span class="kpi-card-unit"> km/h</span></div>
+          <div class="kpi-card-sub">Rafale max<br><b>${fmt(k.vent_rafale)} km/h</b></div>
         </div>
-        <div class="chart-block">
-          <div class="chart-title">Ensoleillement</div>
-          <div class="chart-wrap"><canvas id="chartSoleil" height="110"></canvas></div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="kpi-icon amber">☀️</div>
+            <div class="kpi-card-title">Ensoleillement</div>
+          </div>
+          <div class="kpi-card-value">${ensStr}</div>
+          <div class="kpi-card-sub">Rayonnement actuel<br><b>${fmt(n(last.soleil)||null,0)} W/m²</b></div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <div class="kpi-icon blue">💦</div>
+            <div class="kpi-card-title">Humidité</div>
+          </div>
+          <div class="kpi-card-value">${fmt(k.humidite_moy,0)}<span class="kpi-card-unit">%</span></div>
+          <div class="kpi-card-sub">↑ ${fmt(k.humidite_max,0)}% · ↓ ${fmt(k.humidite_min,0)}%</div>
+        </div>
+        <div class="kpi-card" style="grid-column:span 2;">
+          <div class="kpi-card-header">
+            <div class="kpi-icon purple">🔵</div>
+            <div class="kpi-card-title">Pression</div>
+          </div>
+          <div class="kpi-card-value">${fmt(n(last.pression_actuelle),0)}<span class="kpi-card-unit"> hPa</span></div>
+          <div class="kpi-card-sub">↑ ${fmt(k.pression_max,0)} hPa &nbsp;·&nbsp; ↓ ${fmt(k.pression_min,0)} hPa</div>
+        </div>
+      </div>
+
+      <div class="section-header">Graphiques du jour</div>
+
+      <div class="chart-card">
+        <div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div>
+        <canvas id="cTemp" height="140"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>🌧️ Pluie</span><em>mm</em></div>
+        <canvas id="cPluie" height="110"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div>
+        <canvas id="cVent" height="110"></canvas>
+      </div>
+      <div class="chart-card pb">
+        <div class="chart-card-title"><span>☀️ Rayonnement solaire</span><em>W/m²</em></div>
+        <canvas id="cSoleil" height="110"></canvas>
       </div>
     `;
 
-    makeChart('chartTemp', 'line', labels, [
-      { label: 'Moy', data: rows.map(r => n(r.tempAvg)), borderColor: '#e8604c', backgroundColor: 'rgba(232,96,76,0.1)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-      { label: 'Max', data: rows.map(r => n(r.tempHigh)), borderColor: '#aaa', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 1, borderDash: [3,3] },
-      { label: 'Min', data: rows.map(r => n(r.tempLow)), borderColor: '#ccc', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 1, borderDash: [3,3] },
-    ], { yBeginAtZero: false });
+    makeChart('cTemp','line',labels,[
+      {label:'Moy',data:rows.map(r=>n(r.tempAvg)),borderColor:'#e8604c',backgroundColor:'rgba(232,96,76,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Max',data:rows.map(r=>n(r.tempHigh)),borderColor:'#ddd',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1,borderDash:[3,3]},
+      {label:'Min',data:rows.map(r=>n(r.tempLow)),borderColor:'#ddd',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1,borderDash:[3,3]},
+    ],{y0:false});
 
-    makeChart('chartPluie', 'bar', labels, [
-      { label: 'Précipitations (mm)', data: rows.map(r => n(r.pluie)), backgroundColor: '#4a9edd', borderRadius: 1 },
-      { label: 'Intensité (mm/h)', data: rows.map(r => n(r.pluie_rate)), type: 'line', borderColor: '#1a6aaa', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 1.5 }
+    makeChart('cPluie','bar',labels,[
+      {label:'Précip.',data:rows.map(r=>n(r.pluie)),backgroundColor:'rgba(74,158,221,0.7)',borderRadius:2},
+      {label:'Intensité',data:rows.map(r=>n(r.pluie_rate)),type:'line',borderColor:'#1a6aaa',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5}
     ]);
 
-    makeChart('chartVent', 'line', labels, [
-      { label: 'Vent moy (km/h)', data: rows.map(r => n(r.vent)), borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 },
-      { label: 'Rafale max', data: rows.map(r => n(r.rafale)), borderColor: '#aaa', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, pointRadius: 0, borderWidth: 1, borderDash: [3,3] }
+    makeChart('cVent','line',labels,[
+      {label:'Moy',data:rows.map(r=>n(r.vent)),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
+      {label:'Rafale',data:rows.map(r=>n(r.rafale)),borderColor:'#ddd',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
     ]);
 
-    makeChart('chartSoleil', 'bar', labels, [
-      { label: 'W/m²', data: rows.map(r => n(r.soleil)), backgroundColor: '#f5c518', borderRadius: 1 }
+    makeChart('cSoleil','bar',labels,[
+      {label:'W/m²',data:rows.map(r=>n(r.soleil)),backgroundColor:'rgba(245,197,24,0.7)',borderRadius:2}
     ]);
 
-    document.getElementById('last-update').textContent = 'MAJ : ' + new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   } catch(e) {
-    document.getElementById('content').innerHTML = `<div class="error">⚠️ Erreur : ${e.message}</div>`;
-    document.getElementById('last-update').textContent = 'Erreur';
+    document.getElementById('app').innerHTML=`<div style="padding:16px"><div class="error">⚠️ ${e.message}</div></div>`;
   }
 }
 
 loadData();
-setInterval(loadData, 5 * 60 * 1000);
+setInterval(loadData, 5*60*1000);
 </script>
 </body>
 </html>
