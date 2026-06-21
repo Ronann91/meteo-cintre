@@ -322,10 +322,25 @@ async function loadData() {
       {label:'Moy',data:rows.map(function(r){return n(r.tempMoyCumul);}),borderColor:'#bbb',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]}
     ],{y0:false});
 
-    makeChart('cPluie','bar',labels,[
-      {label:'Précip.',data:rows.map(function(r){return n(r.pluie);}),backgroundColor:'rgba(74,158,221,0.65)',borderRadius:2},
-      {label:'Intensité',data:rows.map(function(r){return n(r.pluie_rate);}),type:'line',borderColor:'#1a6aaa',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5}
-    ],{y0:true});
+    // Agrégat horaire pluie
+    const pByHour = {};
+    rows.forEach(function(r){
+      const h = r.heure.substring(0,2);
+      if(!pByHour[h]) pByHour[h]={cumul:0,intensite:0};
+      pByHour[h].cumul += n(r.pluie)||0;
+      pByHour[h].intensite = Math.max(pByHour[h].intensite, n(r.pluie_rate)||0);
+    });
+    const pHours = Object.keys(pByHour).sort();
+    const pLabels = pHours.map(function(h){return h+'h';});
+    const pCumul = pHours.map(function(h){return parseFloat(pByHour[h].cumul.toFixed(2));});
+    const pIntens = pHours.map(function(h){return parseFloat(pByHour[h].intensite.toFixed(2));});
+    let pRunning = 0;
+    const pRunningTotal = pHours.map(function(h){pRunning+=pByHour[h].cumul;return parseFloat(pRunning.toFixed(2));});
+    makeChart('cPluie','bar',pLabels,[
+      {label:'Précip. (mm)',data:pCumul,backgroundColor:'rgba(74,158,221,0.65)',borderRadius:2,yAxisID:'y'},
+      {label:'Intensité max (mm/h)',data:pIntens,backgroundColor:'rgba(26,106,170,0.4)',borderRadius:2,yAxisID:'y'},
+      {label:'Cumul (mm)',data:pRunningTotal,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,yAxisID:'y2'}
+    ],{y0:true,y2:true});
 
     makeChart('cVent','line',labels,[
       {label:'Moy',data:rows.map(function(r){return n(r.vent);}),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
