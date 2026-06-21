@@ -334,6 +334,7 @@ function buildHourlyTable(rows) {
 }
 
 async function loadData() {
+  const selectedDate = getSelectedDate('display');
   try {
     const token = await getToken();
     const [kpiRes, lastRes, extremesRes, chartRes, hourRes] = await Promise.all([
@@ -346,7 +347,7 @@ async function loadData() {
           MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min,
           SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h
         FROM \`meteo_cintre.data_5_min\`
-        WHERE DATE(obsTimeLocal) = '\${getSelectedDate('sql')}'
+        WHERE DATE(obsTimeLocal) = '\${selectedDate}'
       `),
       queryBQ(token, `
         SELECT tempHigh AS temp_actuelle, windgustHigh AS vent_actuel,
@@ -354,7 +355,7 @@ async function loadData() {
                solarRadiationHigh AS soleil_actuel,
                FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure
         FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY obsTimeLocal DESC LIMIT 1
       `),
       queryBQ(token, `
@@ -367,22 +368,22 @@ async function loadData() {
           FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal) AS heure_vent_max
         FROM
           (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY tempHigh DESC LIMIT 1) t_max,
           (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY tempLow ASC LIMIT 1) t_min,
           (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY precipRate DESC LIMIT 1) p_max,
           (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY humidityHigh DESC LIMIT 1) h_max,
           (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY humidityLow ASC LIMIT 1) h_min,
           (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY windgustHigh DESC LIMIT 1) v_max
       `),
       queryBQ(token, `
@@ -395,7 +396,7 @@ async function loadData() {
           humidityAvg AS humidite, solarRadiationHigh AS soleil,
           tempAvg
         FROM \`meteo_cintre.data_5_min\`
-          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          WHERE DATE(obsTimeLocal) = \'${selectedDate}\'
           ORDER BY obsTimeLocal ASC
       `),
       queryBQ(token, `
