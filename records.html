@@ -199,7 +199,7 @@ async function loadData(){
         const va=n(a[key]),vb=n(b[key]);
         if(va===null)return 1;if(vb===null)return-1;
         return asc?va-vb:vb-va;
-      }).slice(0,limit||10).map(function(r){return{val:r[key],jour:r.jour};});
+      }).slice(0,limit||10).map(function(r){return{val:r[key],jour:r.jour,tmax:n(r.temp_max),tmin:n(r.temp_min)};});
     }
 
     const t10TempMax=top10By('temp_max',false).map(function(r){
@@ -212,14 +212,8 @@ async function loadData(){
     });
     const t10MoyHigh=top10By('temp_moy',false);
     const t10MoyLow=top10By('temp_moy',true);
-    const t10AmpHigh=top10By('amplitude',false).map(function(r){
-      const day=rows.find(function(x){return x.jour===r.jour;});
-      return {val:r.val,jour:r.jour,tmax:day?n(day.temp_max):null,tmin:day?n(day.temp_min):null};
-    });
-    const t10AmpLow=top10By('amplitude',true).map(function(r){
-      const day=rows.find(function(x){return x.jour===r.jour;});
-      return {val:r.val,jour:r.jour,tmax:day?n(day.temp_max):null,tmin:day?n(day.temp_min):null};
-    });
+    const t10AmpHigh=top10By('amplitude',false);
+    const t10AmpLow=top10By('amplitude',true);
     const t10JourMinMax=top10By('jour_min_max',false); // jour où le MAX journalier est le plus bas
     const t10JourMaxMin=top10By('jour_max_min',true);  // jour où le MIN journalier est le plus haut
 
