@@ -156,14 +156,16 @@ async function loadData(){
   document.getElementById('top-sub').textContent=selectedMonth===0?'Tous les mois':'Mois de '+MOIS[selectedMonth];
   const W=monthWhere();
 
-  const qDaily="SELECT jour, temp_max, temp_min, temp_moy, amplitude, jour_min_max, jour_max_min FROM (SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, MAX(tempHigh)-MIN(tempLow) AS amplitude, MIN(tempHigh) AS jour_min_max, MAX(tempLow) AS jour_max_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour) ORDER BY jour";
+  const qDaily="SELECT jour, temp_max, temp_min, temp_moy, amplitude, jour_min_max, jour_max_min FROM (SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, MAX(tempHigh)-MIN(tempLow) AS amplitude, MAX(tempHigh) AS jour_min_max, MIN(tempLow) AS jour_max_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour HAVING COUNT(*) >= 280) ORDER BY jour";
+  const qDailyAll="SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour ORDER BY jour";
   const qTmaxH="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempHigh DESC LIMIT 10";
   const qTminH="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempLow ASC LIMIT 10";
 
   try{
     const token=await getToken();
-    const [res,resTmaxH,resTminH]=await Promise.all([queryBQ(token,qDaily),queryBQ(token,qTmaxH),queryBQ(token,qTminH)]);
+    const [res,resAll,resTmaxH,resTminH]=await Promise.all([queryBQ(token,qDaily),queryBQ(token,qDailyAll),queryBQ(token,qTmaxH),queryBQ(token,qTminH)]);
     const days=parseRows(res);
+    const daysAll=parseRows(resAll);
     const tmaxHeures=parseRows(resTmaxH);
     const tminHeures=parseRows(resTminH);
 
@@ -182,11 +184,20 @@ async function loadData(){
       });
     }
 
-    const t10TempMax = top10By('temp_max',false).map(function(r){
+    function top10ByArr(arr,key,asc){
+      return arr.slice().sort(function(a,b){
+        const va=n(a[key]),vb=n(b[key]);
+        if(va===null)return 1; if(vb===null)return-1;
+        return asc?va-vb:vb-va;
+      }).slice(0,10).map(function(r){
+        return {val:r[key],jour:r.jour,tmax:n(r.temp_max),tmin:n(r.temp_min),heure:null};
+      });
+    }
+    const t10TempMax = top10ByArr(daysAll,'temp_max',false).map(function(r){
       const h=tmaxHeures.find(function(x){return x.jour===r.jour;});
       return Object.assign({},r,{heure:h?h.heure:null});
     });
-    const t10TempMin = top10By('temp_min',true).map(function(r){
+    const t10TempMin = top10ByArr(daysAll,'temp_min',true).map(function(r){
       const h=tminHeures.find(function(x){return x.jour===r.jour;});
       return Object.assign({},r,{heure:h?h.heure:null});
     });
