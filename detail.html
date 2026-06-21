@@ -290,8 +290,8 @@ async function loadData() {
     document.getElementById('content').innerHTML =
       '<div class="main-temp-card">'
         +'<div class="main-temp-left">'
-          +'<div class="main-temp-label">Température max</div>'
-          +'<div class="main-temp-value">'+fmt(tempActuelle)+'<sup>°C</sup></div>'
+          +'<div class="main-temp-label">Température moyenne</div>'
+          +'<div class="main-temp-value">'+fmt(n(k.temp_moy))+'<sup>°C</sup></div>'
           +'<div class="main-temp-meta">'
             +'<div class="meta-item"><b>↑ '+fmt(k.temp_max)+'°C</b><span>'+( ex.heure_temp_max||'—')+'</span></div>'
             +'<div class="meta-item"><b>↓ '+fmt(k.temp_min)+'°C</b><span>'+(ex.heure_temp_min||'—')+'</span></div>'
@@ -299,7 +299,7 @@ async function loadData() {
             +'<div class="meta-item"><b>Δ '+delta+'°C</b></div>'
           +'</div>'
         +'</div>'
-        +'<div class="main-temp-icon">'+tempIcon(tempActuelle)+'</div>'
+        +'<div class="main-temp-icon">'+tempIcon(n(k.temp_moy))+'</div>'
       +'</div>'
       +'<div class="kpi-grid">'
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon blue">🌧️</div><div class="kpi-card-title">Pluie du jour</div></div><div class="kpi-card-value">'+fmt(k.pluie_total)+'<span class="kpi-card-unit"> mm</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.pluie_rate_max)+' mm/h</b><span>Intensité max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_pluie_max||'—')+'</b><span>heure max</span></div></div></div>'
@@ -337,10 +337,10 @@ async function loadData() {
     let pRunning = 0;
     const pRunningTotal = pHours.map(function(h){pRunning+=pByHour[h].cumul;return parseFloat(pRunning.toFixed(2));});
     makeChart('cPluie','bar',pLabels,[
-      {label:'Précip. (mm)',data:pCumul,backgroundColor:'rgba(74,158,221,0.65)',borderRadius:2,yAxisID:'y'},
-      {label:'Intensité max (mm/h)',data:pIntens,backgroundColor:'rgba(26,106,170,0.4)',borderRadius:2,yAxisID:'y'},
-      {label:'Cumul (mm)',data:pRunningTotal,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,yAxisID:'y2'}
-    ],{y0:true,y2:true});
+      {label:'Précip. (mm)',data:pCumul,backgroundColor:'rgba(74,158,221,0.7)',borderRadius:2},
+      {label:'Intensité max (mm/h)',data:pIntens,backgroundColor:'rgba(232,96,76,0.6)',borderRadius:2},
+      {label:'Cumul (mm)',data:pRunningTotal,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2}
+    ],{y0:true});
 
     makeChart('cVent','line',labels,[
       {label:'Moy',data:rows.map(function(r){return n(r.vent);}),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
