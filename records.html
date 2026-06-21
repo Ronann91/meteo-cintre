@@ -194,8 +194,8 @@ async function loadData(){
     const t10MoyLow   = top10By('temp_moy',true);
     const t10AmpHigh  = top10By('amplitude',false);
     const t10AmpLow   = top10By('amplitude',true);
-    const t10JMinMax  = top10By('jour_min_max',false);
-    const t10JMaxMin  = top10By('jour_max_min',true);
+    const t10JMinMax  = top10By('jour_min_max',true);   // MIN(tempHigh) le plus petit = asc
+    const t10JMaxMin  = top10By('jour_max_min',false);  // MAX(tempLow) le plus grand = desc
 
     const r0=t10TempMax[0], r1=t10TempMin[0], r2=t10MoyHigh[0], r3=t10MoyLow[0];
     const r4=t10AmpHigh[0], r5=t10AmpLow[0], r6=t10JMinMax[0], r7=t10JMaxMin[0];
