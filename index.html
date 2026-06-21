@@ -514,5 +514,15 @@ async function loadData() {
 loadData();
 setInterval(loadData, 5*60*1000);
 </script>
+
+<nav style="position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #eee;display:flex;z-index:50;">
+  <a href="index.html" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0;text-decoration:none;color:#667eea;font-size:10px;gap:3px;font-weight:600;">
+    <span style="font-size:20px;">🌤️</span>Aujourd'hui
+  </a>
+  <a href="detail.html" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0;text-decoration:none;color:#aaa;font-size:10px;gap:3px;">
+    <span style="font-size:20px;">📅</span>Journée
+  </a>
+</nav>
+<div style="height:64px;"></div>
 </body>
 </html>
