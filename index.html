@@ -115,7 +115,7 @@ function parseRows(res){
 function makeChart(id,type,labels,datasets,opts={}){
   if(charts[id])charts[id].destroy();
   const ctx=document.getElementById(id).getContext('2d');
-  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,aspectRatio:5,animation:false,plugins:{legend:{display:datasets.length>1,labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}}},scales:{x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},...(opts.y0!==false?{beginAtZero:true}:{})}}}});
+  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,aspectRatio:25,animation:false,plugins:{legend:{display:datasets.length>1,labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+parseFloat(ctx.parsed.y).toFixed(1)+(ctx.chart.canvas.id==='cTemp'?'°C':ctx.chart.canvas.id==='cPluie'?'mm':ctx.chart.canvas.id==='cVent'?'km/h':'');}}}}},scales:{x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},...(opts.y0!==false?{beginAtZero:true}:{})}}}});
 }
 function tempIcon(t){if(t===null)return'🌡️';if(t>=35)return'🥵';if(t>=25)return'☀️';if(t>=15)return'🌤️';if(t>=5)return'🌥️';return'🥶';}
 function fmt(v,d=1){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v).toFixed(d):'—';}
@@ -301,9 +301,9 @@ async function loadData(){
     `;
 
     makeChart('cTemp','line',labels,[
-      {label:'Moy',data:rows.map(r=>n(r.tempMoyCumul)),borderColor:'#e8604c',backgroundColor:'rgba(232,96,76,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2},
-      {label:'Max',data:rows.map(r=>n(r.tempHigh)),borderColor:'#ddd',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1,borderDash:[3,3]},
-      {label:'Min',data:rows.map(r=>n(r.tempLow)),borderColor:'#ddd',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1,borderDash:[3,3]},
+      {label:'Max',data:rows.map(r=>n(r.tempHigh)),borderColor:'#e8604c',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Min',data:rows.map(r=>n(r.tempLow)),borderColor:'#4a9edd',backgroundColor:'rgba(74,158,221,0.06)',fill:'-1',tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Moy',data:rows.map(r=>n(r.tempMoyCumul)),borderColor:'#aaa',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]},
     ],{y0:false});
     makeChart('cPluie','bar',labels,[
       {label:'Précip.',data:rows.map(r=>n(r.pluie)),backgroundColor:'rgba(74,158,221,0.65)',borderRadius:2},
