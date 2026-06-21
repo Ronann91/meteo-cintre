@@ -124,11 +124,11 @@ function buildMonthFilter(){
 function selectMonth(i){ selectedMonth=i; buildMonthFilter(); loadData(); }
 function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE(obsTimeLocal))='+selectedMonth; }
 
-function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra){
+function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra,showTm){
   const topRows = top10.map(function(r,i){
     const rc = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
     const heureCell = r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'';
-    const tmCell = (r.tmax!==null&&r.tmin!==null)?' <span style="color:#bbb;font-size:10px;">'+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°</span>':'';
+    const tmCell = (showTm&&r.tmax!==null&&r.tmin!==null)?' <span style="color:#bbb;font-size:10px;">'+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°</span>':'';
     return '<tr>'
       +'<td class="'+rc+'">'+(i+1)+'</td>'
       +'<td>'+fmt(n(r.val))+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span></td>'
@@ -203,23 +203,23 @@ async function loadData(){
     const html=
       '<div class="section-title">🌡️ Températures extrêmes</div>'
       +'<div class="card-grid">'
-      +recordCard('🥵','red','Température max absolue',r0.val,'°C',r0.jour,r0.heure,t10TempMax,null)
-      +recordCard('🥶','blue','Température min absolue',r1.val,'°C',r1.jour,r1.heure,t10TempMin,null)
+      +recordCard('🥵','red','Température max absolue',r0.val,'°C',r0.jour,r0.heure,t10TempMax,null,false)
+      +recordCard('🥶','blue','Température min absolue',r1.val,'°C',r1.jour,r1.heure,t10TempMin,null,false)
       +'</div>'
       +'<div class="section-title">📊 Moyennes journalières</div>'
       +'<div class="card-grid">'
-      +recordCard('🔥','red','Moyenne la plus élevée',r2.val,'°C',r2.jour,null,t10MoyHigh,null)
-      +recordCard('❄️','blue','Moyenne la plus basse',r3.val,'°C',r3.jour,null,t10MoyLow,null)
+      +recordCard('🔥','red','Moyenne la plus élevée',r2.val,'°C',r2.jour,null,t10MoyHigh,null,false)
+      +recordCard('❄️','blue','Moyenne la plus basse',r3.val,'°C',r3.jour,null,t10MoyLow,null,false)
       +'</div>'
       +'<div class="section-title">↕️ Amplitude thermique</div>'
       +'<div class="card-grid">'
-      +recordCard('📈','amber','Amplitude maximale',r4.val,'°C',r4.jour,null,t10AmpHigh,(r4.tmax!==null?'Max '+fmt(r4.tmax)+'° · Min '+fmt(r4.tmin)+'°':null))
-      +recordCard('📉','teal','Amplitude minimale',r5.val,'°C',r5.jour,null,t10AmpLow,(r5.tmax!==null?'Max '+fmt(r5.tmax)+'° · Min '+fmt(r5.tmin)+'°':null))
+      +recordCard('📈','amber','Amplitude maximale',r4.val,'°C',r4.jour,null,t10AmpHigh,(r4.tmax!==null?'Max '+fmt(r4.tmax)+'° · Min '+fmt(r4.tmin)+'°':null),true)
+      +recordCard('📉','teal','Amplitude minimale',r5.val,'°C',r5.jour,null,t10AmpLow,(r5.tmax!==null?'Max '+fmt(r5.tmax)+'° · Min '+fmt(r5.tmin)+'°':null),true)
       +'</div>'
       +'<div class="section-title">🎯 Records atypiques</div>'
       +'<div class="card-grid">'
-      +recordCard('🌡️','purple','Température maximum la plus basse',r6.val,'°C',r6.jour,null,t10JMinMax,null)
-      +recordCard('🌡️','amber','Température minimum la plus élevée',r7.val,'°C',r7.jour,null,t10JMaxMin,null)
+      +recordCard('🌡️','purple','Température maximum la plus basse',r6.val,'°C',r6.jour,null,t10JMinMax,null,false)
+      +recordCard('🌡️','amber','Température minimum la plus élevée',r7.val,'°C',r7.jour,null,t10JMaxMin,null,false)
       +'</div>'
       +'<div class="pb"></div>';
 
