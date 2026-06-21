@@ -166,7 +166,7 @@ function recordCard(icon,iconClass,title,value,unit,date,heure,top10,asc,extra){
     +'<div class="record-date">Le <b>'+fmtDate(date)+'</b>'+(heure?' à <b>'+heure+'</b>':'')+'</div>'
   +(extra?'<div style="font-size:11px;color:#888;margin:-6px 0 10px;">'+extra+'</div>':'')
     +'<div class="top10-title">Top 10</div>'
-    +'<table class="top10-table">'+rows+'</table>'
+    +'<table class="top10-table"><tbody>'+firstRow+restRows+'</tbody></table>'
     +'</div>';
 }
 
