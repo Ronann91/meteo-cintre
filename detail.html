@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Météo — Cintré | Détail journalier</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+
+.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 20px 28px; color: white; }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.header-location { font-size: 12px; opacity: 0.8; letter-spacing: 0.05em; text-transform: uppercase; }
+.header-title { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.header-time { font-size: 11px; opacity: 0.7; margin-top: 3px; }
+.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; white-space: nowrap; }
+.refresh-btn:active { background: rgba(255,255,255,0.35); }
+
+.main-temp-card { background: white; margin: -16px 16px 0; border-radius: 20px; padding: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; }
+.main-temp-left { flex: 1; }
+.main-temp-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+.main-temp-value { font-size: 48px; font-weight: 300; color: #1a1a2e; line-height: 1; }
+.main-temp-value sup { font-size: 20px; font-weight: 400; color: #888; vertical-align: super; }
+.main-temp-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.meta-item { font-size: 11px; color: #aaa; line-height: 1.5; }
+.meta-item b { display: block; font-size: 13px; font-weight: 600; color: #333; }
+.meta-item span { font-size: 10px; color: #bbb; }
+.main-temp-icon { font-size: 52px; line-height: 1; margin-left: 12px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
+.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card.full { grid-column: span 2; }
+.kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.kpi-icon.blue { background: #e8f4ff; }
+.kpi-icon.teal { background: #e6f9f3; }
+.kpi-icon.amber { background: #fff8e6; }
+.kpi-icon.purple { background: #f3eeff; }
+.kpi-icon.pink { background: #fff0f5; }
+.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
+.kpi-sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 7px; }
+.kpi-sub-item { font-size: 10px; color: #bbb; line-height: 1.6; }
+.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: #555; }
+.kpi-sub-item span { font-size: 10px; color: #ccc; }
+.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: #555; font-weight: 500; }
+
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+
+/* TABLEAU HORAIRE */
+.table-section { padding: 0 16px 24px; }
+.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th:first-child { text-align: left; padding-left: 12px; }
+tbody tr { border-bottom: 0.5px solid #f5f5f5; cursor: pointer; transition: background 0.15s; }
+tbody tr:hover { background: #f9f9ff; }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #667eea; }
+
+/* MODAL DÉTAIL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: flex-end; }
+.modal { background: white; border-radius: 20px 20px 0 0; width: 100%; max-height: 70vh; overflow-y: auto; padding: 20px 16px 32px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+.modal-close { background: #f0f0f0; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.detail-table th { color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+.detail-table th:first-child { text-align: left; }
+.detail-table td { padding: 7px 8px; text-align: center; border-bottom: 0.5px solid #f5f5f5; color: #333; }
+.detail-table td:first-child { text-align: left; font-weight: 600; color: #667eea; }
+.detail-table tr:last-child td { border-bottom: none; }
+
+.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
+.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
+<div id="modal-container"></div>
+
+<script>
+const SA = {
+  project_id: "mystic-aileron-471209-p6",
+  client_email: "app-perso@mystic-aileron-471209-p6.iam.gserviceaccount.com",
+  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBjetWxhjhSL4F\nWqQzif3uQoHH8tFceFmKHX0zg8qy9XZjSmpZApkBL1m/UX3VoHEehPd7aLMuC86j\nzvSfvv3kh1fZBzXtW6OGmlDgMLIIFzXJfd9efe24iX7CzGTuQPa6MG+/kg+KlKUT\nXvTOpT8pRLCcIDqkUGpCT0QGERCbQ0oueQXRA9JwXyOfJoukODhWqsgMPEoIt+xV\nFt3WqQQXAeyvHOP6oA4mSJisk7ShrVXKN9R4ik1LO/jXlRlEH2MH3mYbalSHyeic\n/tHkQjJ6wP61NjhQnInqWo7Tny4qtrPwpU3kj+Y7uoDWAiVYIAsLLR62h7YAPNEZ\noD6OFZkvAgMBAAECggEADPR1TIUM1ENcqJoVBHgXfXOJITtw5OoPQC3SG/kVv52r\nU2D/Nj70w74KGUKYlAxdlefbcrCi0ZGrvo4TFIAhmUKv0BBp/R2Vl+RLRn4r5Fu9\nV2Or6DSwjRny2JH6rXG+sd6dFCrwDFv/oojIBO7Nh/MXiROlKStSuWZ5zJgmzuV3\nlW63l7RRLujmr5Z4kaNK8x1EMmhNHg7FvBLJ7MdHOXQh8zPE+1YC9laBqQwZaEvJ\nq51hNKTWFhB5pg4SqL+0pbgzQ4Wg58grIhRaw6z9YYwgFPc59YSRB5xUCfTUt6Hg\nILw9O3Z5CNRKBLzA6Q6jIyzbLEyOGcZTy0Sq2AJr+QKBgQD7E8KPh96aykXYxnvz\nc7jd6Irb3H0Dyd1P2kKb9C6FWWW+XU4wcOws49WMBAp03KJm/h2rEvbzXk1u1eHL\n/SwVhRuZkrTluIitvyvC3TZKCXZGLVKhbRq1TKuqoV2V1vV5Re29E0abliRWhFoP\n2ZFGrIMngvck/knyV63b3U82SQKBgQDFWW7hh0abOnn2KlVR8h4l6Sp/N3Nu1//U\nE9mY9IeCZ2PlwefnCQRuAW/tX6/FGerOne+RmUfoCkEqaOYQNoAiNhzhRLIF4cey\nyJxpsHuFFLssuNX3brm8y1vdQ5FdPSnp1KC/nHUt23bGqo2yO8pBL3rCsl6diTRJ\n5xEMMHtztwKBgDigi0gN79HffwNWOMx+tBowgWj3AKcjFywUYOOFnhxrPjxCFQlt\n3oZ9WEN9AdK7lFFATPaxj0ryYOp3iLaWQiQUYlYvtWb+SK1PKZKIi98E5U0Mmc9Y\nqSZsxWb1gAL0eWbBs83qFAmxQj7VGO7sNgzHickWi6EnTQxAZDDraBspAoGBAIS7\nzS8VHDElmIgwGuidzxcyhym/cv03fFL48t7EgSv9PBx5We9zii4u+0gNlpwb/Wjw\nowQrs0hnNUNAAJUhAvd/q9b7rDz2iak+8qzHTZzJv8apnwfnyjcoE+ZzHp82ly01\nnNSjd9DbDj0600jwm+1R8OBoteiBMtEN/9JR/YZrAoGBANo/HPFk8NnGUINr4bSW\nosfCWI+R6Rq0sNZZE0vu8xPGQA4rEum3fzxTJ66Cshrc2F4ImNjCnN5UhzElMhcI\nSYIXajR5XLsO86ZI8UvFCkI0WuKi5Jx1H9oXOe0DjdOlMR1jnbfEJB8sq3zfb6+o\nvyfjf+yZS/InhZSVb7SclMU+\n-----END PRIVATE KEY-----\n"
+};
+
+let charts = {};
+let rawRows = [];
+let hourlyRows = [];
+
+function b64url(s) { return btoa(unescape(encodeURIComponent(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
+function b64urlB(a) { let s=''; a.forEach(b=>s+=String.fromCharCode(b)); return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
+
+async function getToken() {
+  const now = Math.floor(Date.now()/1000);
+  const h = b64url(JSON.stringify({alg:"RS256",typ:"JWT"}));
+  const p = b64url(JSON.stringify({iss:SA.client_email,scope:"https://www.googleapis.com/auth/bigquery",aud:"https://oauth2.googleapis.com/token",exp:now+3600,iat:now}));
+  const sig = h+"."+p;
+  const pem = SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
+  const der = Uint8Array.from(atob(pem), c=>c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", der.buffer, {name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"}, false, ["sign"]);
+  const bytes = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(sig));
+  const jwt = sig+"."+b64urlB(new Uint8Array(bytes));
+  const r = await fetch("https://oauth2.googleapis.com/token", {method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:`grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`});
+  const d = await r.json();
+  if(!d.access_token) throw new Error("Auth: "+JSON.stringify(d));
+  return d.access_token;
+}
+
+async function queryBQ(token, sql) {
+  const r = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${SA.project_id}/queries`, {method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({query:sql,useLegacySql:false,timeoutMs:15000,location:"europe-west9"})});
+  const d = await r.json();
+  if(d.error) throw new Error(d.error.message);
+  return d;
+}
+
+function parseRows(res) {
+  if(!res.rows) return [];
+  const f = res.schema.fields.map(f=>f.name);
+  return res.rows.map(r=>{const o={};r.f.forEach((v,i)=>o[f[i]]=v.v);return o;});
+}
+
+function n(v) { return (v!==null&&v!==''&&v!==undefined) ? parseFloat(v) : null; }
+function fmt(v, d=1) { return (v!==null&&v!==''&&v!==undefined) ? parseFloat(v).toFixed(d) : '—'; }
+function pad(x) { return String(x).padStart(2,'0'); }
+function tempIcon(t) { if(t===null) return'🌡️'; if(t>=35) return'🥵'; if(t>=25) return'☀️'; if(t>=15) return'🌤️'; if(t>=5) return'🌥️'; return'🥶'; }
+
+// Échelle de couleur : bleu (froid) → rouge (chaud) pour temp, bleu → orange pour pluie/vent
+function heatColor(val, min, max, type='default') {
+  if(val===null||min===max) return '';
+  const ratio = Math.max(0, Math.min(1, (val-min)/(max-min)));
+  if(type==='temp') {
+    const r = Math.round(55 + ratio*180);
+    const g = Math.round(130 - ratio*80);
+    const b = Math.round(221 - ratio*190);
+    return `background:rgba(${r},${g},${b},0.18);`;
+  }
+  if(type==='rain') {
+    return `background:rgba(74,158,221,${0.08 + ratio*0.35});`;
+  }
+  if(type==='wind') {
+    return `background:rgba(29,158,117,${0.08 + ratio*0.35});`;
+  }
+  return `background:rgba(100,100,200,${0.08 + ratio*0.3});`;
+}
+
+function makeChart(id, type, labels, datasets, opts={}) {
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  const units = {'cTemp':'°C','cPluie':' mm','cVent':' km/h','cSoleil':' W/m²'};
+  const scales = {
+    x: {ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},
+    y: {ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},...(opts.y0!==false?{beginAtZero:true}:{})}
+  };
+  if(opts.y2) {
+    scales.y2 = {position:'right',ticks:{color:'#e8a020',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true};
+  }
+  charts[id] = new Chart(ctx, {
+    type,
+    data: {labels, datasets},
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1,
+      animation: false,
+      plugins: {
+        legend: {display: datasets.length>1, labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}},
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(c) {
+              return c.dataset.label+': '+parseFloat(c.parsed.y).toFixed(1)+(units[id]||'');
+            }
+          }
+        }
+      },
+      scales: scales
+    }
+  });
+}
+
+function showModal(heure) {
+  const rows = rawRows.filter(r => r.heure.startsWith(heure));
+  if(!rows.length) return;
+  const html = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Détail ${heure}h — ${rows.length} mesures</div>
+          <button class="modal-close" onclick="document.getElementById('modal-container').innerHTML=''">✕</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th>Heure</th>
+                <th>T°Max</th>
+                <th>T°Min</th>
+                <th>T°Moy</th>
+                <th>Pluie</th>
+                <th>Intensité</th>
+                <th>Vent</th>
+                <th>Rafale</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r=>`<tr>
+                <td>${r.heure}</td>
+                <td>${fmt(n(r.tempHigh))}°</td>
+                <td>${fmt(n(r.tempLow))}°</td>
+                <td>${fmt(n(r.tempAvg))}°</td>
+                <td>${fmt(n(r.pluie))} mm</td>
+                <td>${fmt(n(r.pluie_rate))} mm/h</td>
+                <td>${fmt(n(r.vent))} km/h</td>
+                <td>${fmt(n(r.rafale))} km/h</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modal-container').innerHTML = html;
+}
+
+function closeModal(e) {
+  if(e.target.classList.contains('modal-overlay')) {
+    document.getElementById('modal-container').innerHTML = '';
+  }
+}
+
+function buildHourlyTable(rows) {
+  // Grouper par heure
+  const byHour = {};
+  rows.forEach(r => {
+    const h = r.heure.substring(0,2);
+    if(!byHour[h]) byHour[h] = [];
+    byHour[h].push(r);
+  });
+
+  const hours = Object.keys(byHour).sort();
+  const agg = hours.map(h => {
+    const rr = byHour[h];
+    return {
+      heure: h+'h',
+      temp_max: Math.max(...rr.map(r=>n(r.tempHigh)).filter(v=>v!==null)),
+      temp_min: Math.min(...rr.map(r=>n(r.tempLow)).filter(v=>v!==null)),
+      temp_moy: rr.reduce((s,r)=>s+(n(r.tempAvg)||0),0)/rr.length,
+      pluie: rr.reduce((s,r)=>s+(n(r.pluie)||0),0),
+      intensite_max: Math.max(...rr.map(r=>n(r.pluie_rate)).filter(v=>v!==null)),
+      vent_moy: rr.reduce((s,r)=>s+(n(r.vent)||0),0)/rr.length,
+      vent_max: Math.max(...rr.map(r=>n(r.rafale)).filter(v=>v!==null))
+    };
+  });
+
+  // Calcul min/max pour échelle couleur
+  const allTmax = agg.map(r=>r.temp_max).filter(v=>isFinite(v));
+  const allTmin = agg.map(r=>r.temp_min).filter(v=>isFinite(v));
+  const allTmoy = agg.map(r=>r.temp_moy).filter(v=>isFinite(v));
+  const allPluie = agg.map(r=>r.pluie).filter(v=>isFinite(v));
+  const allIntens = agg.map(r=>r.intensite_max).filter(v=>isFinite(v)&&v>0);
+  const allVmoy = agg.map(r=>r.vent_moy).filter(v=>isFinite(v));
+  const allVmax = agg.map(r=>r.vent_max).filter(v=>isFinite(v));
+
+  const minmax = arr => [Math.min(...arr), Math.max(...arr)];
+  const [tmxMn,tmxMx] = minmax(allTmax);
+  const [tmnMn,tmnMx] = minmax(allTmin);
+  const [tmyMn,tmyMx] = minmax(allTmoy);
+  const [plMn,plMx] = minmax(allPluie);
+  const [inMn,inMx] = minmax(allIntens.length?allIntens:[0,0]);
+  const [vmMn,vmMx] = minmax(allVmoy);
+  const [vxMn,vxMx] = minmax(allVmax);
+
+  const rows_html = agg.map(r => {
+    const h = r.heure.replace('h','');
+    return `<tr onclick="showModal('${h}')">
+      <td>${r.heure}</td>
+      <td style="${heatColor(r.temp_max,tmxMn,tmxMx,'temp')}">${fmt(r.temp_max)}°</td>
+      <td style="${heatColor(r.temp_min,tmnMn,tmnMx,'temp')}">${fmt(r.temp_min)}°</td>
+      <td style="${heatColor(r.temp_moy,tmyMn,tmyMx,'temp')}">${fmt(r.temp_moy)}°</td>
+      <td style="${heatColor(r.pluie,plMn,plMx,'rain')}">${fmt(r.pluie)} mm</td>
+      <td style="${heatColor(r.intensite_max,inMn,inMx,'rain')}">${isFinite(r.intensite_max)&&r.intensite_max>0?fmt(r.intensite_max)+' mm/h':'—'}</td>
+      <td style="${heatColor(r.vent_moy,vmMn,vmMx,'wind')}">${fmt(r.vent_moy)}</td>
+      <td style="${heatColor(r.vent_max,vxMn,vxMx,'wind')}">${isFinite(r.vent_max)?fmt(r.vent_max):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="table-section">
+      <div class="section-header" style="padding-left:0;">Tableau horaire — cliquer pour le détail</div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Heure</th>
+                <th>T°Max</th>
+                <th>T°Min</th>
+                <th>T°Moy</th>
+                <th>Pluie</th>
+                <th>Intens.</th>
+                <th>Vent</th>
+                <th>Rafale</th>
+              </tr>
+            </thead>
+            <tbody>${rows_html}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function loadData() {
+  try {
+    const token = await getToken();
+    const [kpiRes, lastRes, extremesRes, chartRes, hourRes] = await Promise.all([
+      queryBQ(token, `
+        SELECT
+          MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
+          SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max,
+          MAX(windgustHigh) AS vent_rafale_max,
+          AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min,
+          MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min,
+          SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h
+        FROM \`meteo_cintre.data_5_min\`
+        WHERE DATE(obsTimeLocal) = '\${getSelectedDate('sql')}'
+      `),
+      queryBQ(token, `
+        SELECT tempHigh AS temp_actuelle, windgustHigh AS vent_actuel,
+               humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle,
+               solarRadiationHigh AS soleil_actuel,
+               FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure
+        FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY obsTimeLocal DESC LIMIT 1
+      `),
+      queryBQ(token, `
+        SELECT
+          FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal) AS heure_temp_max,
+          FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal) AS heure_temp_min,
+          FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal) AS heure_pluie_max,
+          FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal) AS heure_hum_max,
+          FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal) AS heure_hum_min,
+          FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal) AS heure_vent_max
+        FROM
+          (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY tempHigh DESC LIMIT 1) t_max,
+          (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY tempLow ASC LIMIT 1) t_min,
+          (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY precipRate DESC LIMIT 1) p_max,
+          (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY humidityHigh DESC LIMIT 1) h_max,
+          (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY humidityLow ASC LIMIT 1) h_min,
+          (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY windgustHigh DESC LIMIT 1) v_max
+      `),
+      queryBQ(token, `
+        SELECT
+          FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure,
+          tempHigh, tempLow,
+          AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul,
+          somme AS pluie, precipRate AS pluie_rate,
+          windspeedAvg AS vent, windgustHigh AS rafale,
+          humidityAvg AS humidite, solarRadiationHigh AS soleil,
+          tempAvg
+        FROM \`meteo_cintre.data_5_min\`
+          WHERE DATE(obsTimeLocal) = \'${getSelectedDate("sql")}\'
+          ORDER BY obsTimeLocal ASC
+      `),
+      queryBQ(token, `
+        SELECT
+          FORMAT_TIMESTAMP('%H', obsTimeLocal) AS heure,
+          MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
+          SUM(somme) AS pluie, MAX(precipRate) AS intensite_max,
+          AVG(windspeedAvg) AS vent_moy, MAX(windgustHigh) AS vent_max
+        FROM \`meteo_cintre.data_5_min\`
+        GROUP BY heure ORDER BY heure ASC
+      `)
+    ]);
+
+    const k = parseRows(kpiRes)[0] || {};
+    const last = parseRows(lastRes)[0] || {};
+    const ex = parseRows(extremesRes)[0] || {};
+    const rows = parseRows(chartRes);
+    rawRows = rows;
+    hourlyRows = parseRows(hourRes);
+
+    const labels = rows.map(r=>r.heure);
+    const tempActuelle = n(last.temp_actuelle);
+    const delta = (n(k.temp_max)!==null&&n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)).toFixed(1) : '—';
+    const ensH = parseFloat(k.ens_h||0);
+    const ensHH = Math.floor(ensH);
+    const ensMM = Math.round((ensH-ensHH)*60);
+    const ensStr = ensHH>0 ? `${ensHH}H${pad(ensMM)}` : `${ensMM}min`;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+
+    document.getElementById('app').innerHTML = `
+      <div class="header">
+        <div class="header-top">
+          <div>
+            <div class="header-location" style="display:flex;gap:12px;"><a href="index.html" style="color:rgba(255,255,255,0.7);text-decoration:none;">← Journée en cours</a> <span>📍 Cintré</span></div>
+            <div class="header-title">Détail journalier</div>
+            <div class="header-time">${getSelectedDate('display')} · ${rows.length} mesures</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="date" id="datePicker" style="border:none;background:rgba(255,255,255,0.2);color:white;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;" onchange="loadData()">
+            <button class="refresh-btn" onclick="loadData()">↻</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-temp-card">
+        <div class="main-temp-left">
+          <div class="main-temp-label">Température actuelle</div>
+          <div class="main-temp-value">${fmt(tempActuelle)}<sup>°C</sup></div>
+          <div class="main-temp-meta">
+            <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C</b><span>${ex.heure_temp_max||'—'}</span></div>
+            <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C</b><span>${ex.heure_temp_min||'—'}</span></div>
+            <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C</b></div>
+            <div class="meta-item"><b>Δ ${delta}°C</b></div>
+          </div>
+        </div>
+        <div class="main-temp-icon">${tempIcon(tempActuelle)}</div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon blue">🌧️</div><div class="kpi-card-title">Pluie du jour</div></div>
+          <div class="kpi-card-value">${fmt(k.pluie_total)}<span class="kpi-card-unit"> mm</span></div>
+          <div class="kpi-sub-grid">
+            <div class="kpi-sub-item"><b>${fmt(k.pluie_rate_max)} mm/h</b><span>Intensité max</span></div>
+            <div class="kpi-sub-item"><b>${ex.heure_pluie_max||'—'}</b><span>heure max</span></div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div>
+          <div class="kpi-card-value">${fmt(n(last.vent_actuel),1)}<span class="kpi-card-unit"> km/h</span></div>
+          <div class="kpi-sub-grid">
+            <div class="kpi-sub-item"><b>${fmt(k.vent_rafale_max)} km/h</b><span>Rafale max (56s)</span></div>
+            <div class="kpi-sub-item"><b>${ex.heure_vent_max||'—'}</b><span>heure max</span></div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon amber">☀️</div><div class="kpi-card-title">Ensoleillement</div></div>
+          <div class="kpi-card-value">${ensStr}</div>
+          <div class="kpi-sub-single">Rayonnement actuel<br><b>${fmt(n(last.soleil_actuel),0)} W/m²</b></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon pink">💦</div><div class="kpi-card-title">Humidité</div></div>
+          <div class="kpi-card-value">${fmt(k.humidite_moy,0)}<span class="kpi-card-unit">%</span></div>
+          <div class="kpi-sub-grid">
+            <div class="kpi-sub-item"><b>↑ ${fmt(k.humidite_max,0)}%</b><span>${ex.heure_hum_max||'—'}</span></div>
+            <div class="kpi-sub-item"><b>↓ ${fmt(k.humidite_min,0)}%</b><span>${ex.heure_hum_min||'—'}</span></div>
+          </div>
+        </div>
+        <div class="kpi-card full">
+          <div class="kpi-card-header"><div class="kpi-icon purple">🔵</div><div class="kpi-card-title">Pression</div></div>
+          <div class="kpi-card-value">${fmt(n(last.pression_actuelle),0)}<span class="kpi-card-unit"> hPa</span></div>
+          <div class="kpi-sub-single">↑ <b>${fmt(k.pression_max,0)} hPa</b> &nbsp;·&nbsp; ↓ <b>${fmt(k.pression_min,0)} hPa</b></div>
+        </div>
+      </div>
+
+      <div class="section-header">Graphiques du jour</div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div>
+        <canvas id="cTemp"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>🌧️ Pluie</span><em>mm</em></div>
+        <canvas id="cPluie"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div>
+        <canvas id="cVent"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>☀️ Rayonnement solaire</span><em>W/m²</em></div>
+        <canvas id="cSoleil"></canvas>
+      </div>
+
+      ${buildHourlyTable(rows)}
+    `;
+
+    makeChart('cTemp','line',labels,[
+      {label:'Max',data:rows.map(r=>n(r.tempHigh)),borderColor:'#e8604c',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Min',data:rows.map(r=>n(r.tempLow)),borderColor:'#4a9edd',backgroundColor:'rgba(74,158,221,0.06)',fill:'-1',tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Moy',data:rows.map(r=>n(r.tempMoyCumul)),borderColor:'#bbb',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]}
+    ],{y0:false});
+
+    makeChart('cPluie','bar',labels,[
+      {label:'Précip.',data:rows.map(r=>n(r.pluie)),backgroundColor:'rgba(74,158,221,0.65)',borderRadius:2},
+      {label:'Intensité',data:rows.map(r=>n(r.pluie_rate)),type:'line',borderColor:'#1a6aaa',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5}
+    ]);
+
+    makeChart('cVent','line',labels,[
+      {label:'Moy',data:rows.map(r=>n(r.vent)),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
+      {label:'Rafale',data:rows.map(r=>n(r.rafale)),borderColor:'#ccc',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
+    ]);
+
+    makeChart('cSoleil','bar',labels,[
+      {label:'Ensoleillement',data:rows.map(r=>n(r.soleil)>150?n(r.soleil):null),backgroundColor:'rgba(245,197,24,0.5)',borderRadius:0,yAxisID:'y'},
+      {label:'W/m²',data:rows.map(r=>n(r.soleil)),type:'line',borderColor:'#e8a020',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,yAxisID:'y'}
+    ],{y0:true});
+
+  } catch(e) {
+    document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">⚠️ ${e.message}</div></div>`;
+  }
+}
+
+// Init date picker sur hier
+const dp = document.getElementById('datePicker');
+if(dp) {
+  const hier = new Date();
+  hier.setDate(hier.getDate()-1);
+  dp.value = hier.toISOString().split('T')[0];
+}
+
+function getSelectedDate(mode) {
+  const dp = document.getElementById('datePicker');
+  const val = dp ? dp.value : '';
+  if(!val) return mode==='display' ? 'Hier' : '';
+  if(mode==='display') return new Date(val+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(mode==='sql') return val;
+  return val;
+}
+
+loadData();
+</script>
+</body>
+</html>
