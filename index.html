@@ -115,7 +115,8 @@ function parseRows(res){
 function makeChart(id,type,labels,datasets,opts={}){
   if(charts[id])charts[id].destroy();
   const ctx=document.getElementById(id).getContext('2d');
-  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,aspectRatio:25,animation:false,plugins:{legend:{display:datasets.length>1,labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+parseFloat(ctx.parsed.y).toFixed(1)+(ctx.chart.canvas.id==='cTemp'?'°C':ctx.chart.canvas.id==='cPluie'?'mm':ctx.chart.canvas.id==='cVent'?'km/h':'');}}}}},scales:{x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},...(opts.y0!==false?{beginAtZero:true}:{})}}}});
+  const units={'cTemp':'°C','cPluie':' mm','cVent':' km/h','cSoleil':' W/m²'};
+  charts[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,aspectRatio:25,animation:false,plugins:{legend:{display:datasets.length>1,labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+parseFloat(c.parsed.y).toFixed(1)+(units[id]||'');}}}},scales:{x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},...(opts.y0!==false?{beginAtZero:true}:{})}}}});
 }
 function tempIcon(t){if(t===null)return'🌡️';if(t>=35)return'🥵';if(t>=25)return'☀️';if(t>=15)return'🌤️';if(t>=5)return'🌥️';return'🥶';}
 function fmt(v,d=1){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v).toFixed(d):'—';}
