@@ -160,21 +160,19 @@ async function loadData() {
       queryBQ(token, `
         SELECT
           MAX(tempHigh) as temp_max, MIN(tempLow) as temp_min, AVG(tempAvg) as temp_moy,
-          SUM(somme) as pluie_total,
+          SUM(precipTotal) as pluie_total,
           MAX(windgustHigh) as vent_max, AVG(windspeedAvg) as vent_moy,
           AVG(humidityAvg) as humidite_moy,
           MAX(pressureMax) as pression_max,
-          SUM(Ensoleillement) as ensoleillement
-        FROM \`meteo_cintre.data_5_min\`
-        WHERE DATE(obsTimeLocal) = CURRENT_DATE('Europe/Paris')
+          MAX(solarRadiationHigh) as soleil
+        FROM \`meteo_cintre.data_5_min_today\`
       `),
       queryBQ(token, `
         SELECT
           FORMAT_TIMESTAMP('%H:%M', obsTimeLocal, 'Europe/Paris') as heure,
-          tempAvg, tempHigh, somme as pluie, windspeedAvg as vent,
-          humidityAvg as humidite, Ensoleillement as soleil
-        FROM \`meteo_cintre.data_5_min\`
-        WHERE DATE(obsTimeLocal) = CURRENT_DATE('Europe/Paris')
+          tempAvg, tempHigh, precipTotal as pluie, windspeedAvg as vent,
+          humidityAvg as humidite, solarRadiationHigh as soleil
+        FROM \`meteo_cintre.data_5_min_today\`
         ORDER BY obsTimeLocal ASC
       `)
     ]);
@@ -218,7 +216,7 @@ async function loadData() {
         </div>
         <div class="kpi-card">
           <div class="kpi-label">${iconSun} Ensoleillement</div>
-          <div class="kpi-value" style="font-size:22px;">${kpi.ensoleillement ? Math.round(parseFloat(kpi.ensoleillement)/3600)+'h' : '—'}</div>
+          <div class="kpi-value" style="font-size:22px;">${kpi.soleil ? Math.round(parseFloat(kpi.soleil))+' W/m²' : '—'}</div>
         </div>
       </div>
       <div class="section">
