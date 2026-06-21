@@ -150,15 +150,16 @@ function monthWhere(){
 }
 
 function recordCard(icon,iconClass,title,value,unit,date,heure,top10,asc,extra){
-  const rows=top10.map(function(r,i){
-    const heureStr=r.heure?' à <b>'+r.heure+'</b>':'';
+  const allRows=top10.map(function(r,i){
     const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
     return '<tr>'
       +'<td class="'+rankClass+'">'+(i+1)+'</td>'
       +'<td>'+fmt(n(r.val))+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span></td>'
-      +'<td>'+fmtDate(r.jour)+(r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'')+(r.tmax!==null&&r.tmin!==null?' <span style="color:#bbb;font-size:10px;">('+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°)</span>':'')+'</td>'
+      +'<td>'+fmtDate(r.jour)+(r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'')+(r.tmax!==null&&r.tmin!==null?' <span style="color:#bbb;font-size:10px;">'+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°</span>':'')+'</td>'
       +'</tr>';
-  }).join('');
+  });
+  const firstRow=allRows[0]||'';
+  const restRows=allRows.slice(1).join('');
   return '<div class="record-card">'
     +'<div class="record-header"><div class="record-icon '+iconClass+'">'+icon+'</div><div class="record-title">'+title+'</div></div>'
     +'<div class="record-value-row"><div class="record-value">'+fmt(n(value))+'</div><div class="record-unit">'+unit+'</div></div>'
@@ -238,8 +239,8 @@ async function loadData(){
       +recordCard('📈','amber','Amplitude maximale',recAmpHigh.val,'°C',recAmpHigh.jour,null,t10AmpHigh,false,recAmpHigh.tmax!==null?'Max '+fmt(recAmpHigh.tmax)+'° · Min '+fmt(recAmpHigh.tmin)+'°':null)
       +recordCard('📉','teal','Amplitude minimale',recAmpLow.val,'°C',recAmpLow.jour,null,t10AmpLow,true,recAmpLow.tmax!==null?'Max '+fmt(recAmpLow.tmax)+'° · Min '+fmt(recAmpLow.tmin)+'°':null)
       +'</div><div class="section-title">🎯 Records atypiques</div><div class="card-grid">'
-      +recordCard('🌡️','purple','Max journalier le plus bas (jour le plus froid malgré tout)',recJourMinMax.val,'°C',recJourMinMax.jour,null,t10JourMinMax,false)
-      +recordCard('🌡️','amber','Min journalier le plus haut (nuit la plus chaude)',recJourMaxMin.val,'°C',recJourMaxMin.jour,null,t10JourMaxMin,true)
+      +recordCard('🌡️','purple','Température maximale la plus basse',recJourMinMax.val,'°C',recJourMinMax.jour,null,t10JourMinMax,false)
+      +recordCard('🌡️','amber','Température minimale la plus élevée',recJourMaxMin.val,'°C',recJourMaxMin.jour,null,t10JourMaxMin,true)
       +'</div><div class="pb"></div>';
 
     document.getElementById('content').innerHTML=html;
