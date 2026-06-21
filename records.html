@@ -7,56 +7,44 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
-
 .top-bar { background: linear-gradient(135deg, #e8604c 0%, #c0392b 100%); padding: 14px 16px 26px; color: white; }
 .top-bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .top-bar-title { font-size: 18px; font-weight: 700; }
 .top-bar-sub { font-size: 11px; opacity: 0.75; }
 .refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
-
 .month-filter { display: flex; overflow-x: auto; gap: 6px; padding: 12px 16px; scrollbar-width: none; }
 .month-filter::-webkit-scrollbar { display: none; }
 .month-btn { flex-shrink: 0; border: 1.5px solid #e0e0e0; border-radius: 20px; padding: 5px 12px; font-size: 12px; background: white; color: #555; cursor: pointer; white-space: nowrap; }
 .month-btn.active { background: #e8604c; border-color: #e8604c; color: white; font-weight: 600; }
-
-.record-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
-.record-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.record-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-.record-icon.red { background: #fff0ee; }
-.record-icon.blue { background: #e8f4ff; }
-.record-icon.amber { background: #fff8e6; }
-.record-icon.teal { background: #e6f9f3; }
-.record-icon.purple { background: #f3eeff; }
-.record-title { font-size: 12px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-
-.record-value-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
-.record-value { font-size: 36px; font-weight: 300; color: #1a1a2e; line-height: 1; }
-.record-unit { font-size: 16px; color: #aaa; }
-.record-date { font-size: 12px; color: #aaa; margin-bottom: 12px; }
+.card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 0 16px; margin-bottom: 4px; }
+.record-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.record-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.record-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.record-icon.red { background: #fff0ee; } .record-icon.blue { background: #e8f4ff; }
+.record-icon.amber { background: #fff8e6; } .record-icon.teal { background: #e6f9f3; } .record-icon.purple { background: #f3eeff; }
+.record-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; line-height: 1.3; }
+.record-value { font-size: 28px; font-weight: 300; color: #1a1a2e; line-height: 1; }
+.record-unit { font-size: 14px; color: #aaa; }
+.record-date { font-size: 11px; color: #aaa; margin: 4px 0 8px; }
 .record-date b { color: #555; }
-
-.top10-title { font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-.top10-table { width: 100%; border-collapse: collapse; }
+.record-extra { font-size: 11px; color: #888; margin: -4px 0 8px; }
+details summary { font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 4px; user-select: none; }
+details summary::-webkit-details-marker { display: none; }
+details[open] summary .arr { transform: rotate(180deg); }
+.arr { display: inline-block; transition: transform 0.2s; font-size: 9px; }
+.top10-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .top10-table tr { border-bottom: 0.5px solid #f5f5f5; }
 .top10-table tr:last-child { border-bottom: none; }
-.top10-table td { padding: 6px 4px; font-size: 12px; color: #555; }
-.top10-table td:first-child { width: 24px; font-weight: 700; color: #ccc; font-size: 11px; }
-.top10-table td:nth-child(2) { font-weight: 600; color: #1a1a2e; min-width: 60px; }
-.top10-table td:last-child { color: #aaa; text-align: right; font-size: 11px; }
-.rank-1 { color: #e8604c !important; }
-.rank-2 { color: #888 !important; }
-.rank-3 { color: #b8860b !important; }
-
-.card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 0 16px; margin-bottom: 4px; }
-.card-grid .record-card { margin: 0; }
-.card-grid .record-value { font-size: 26px; }
-.section-title { padding: 16px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
-
+.top10-table td { padding: 5px 3px; font-size: 11px; color: #555; }
+.top10-table td:first-child { width: 20px; font-weight: 700; color: #ccc; font-size: 10px; }
+.top10-table td:nth-child(2) { font-weight: 600; color: #1a1a2e; }
+.top10-table td:last-child { color: #aaa; text-align: right; font-size: 10px; }
+.rank-1 { color: #e8604c !important; } .rank-2 { color: #888 !important; } .rank-3 { color: #b8860b !important; }
+.section-title { padding: 14px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
 .loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
 .spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #e8604c; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
 .error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
 nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
 nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
 nav a.active { color: #e8604c; font-weight: 600; }
@@ -64,7 +52,6 @@ nav a.active { color: #e8604c; font-weight: 600; }
 </style>
 </head>
 <body>
-
 <div class="top-bar">
   <div class="top-bar-row">
     <div>
@@ -75,16 +62,13 @@ nav a.active { color: #e8604c; font-weight: 600; }
   </div>
   <div class="top-bar-sub" id="top-sub">Chargement...</div>
 </div>
-
 <div class="month-filter" id="monthFilter"></div>
 <div id="content"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
-
 <nav>
   <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
   <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
   <a href="records.html" class="active"><span style="font-size:20px;">🏆</span>Records</a>
 </nav>
-
 <script>
 const SA = {
   project_id: "mystic-aileron-471209-p6",
@@ -132,116 +116,112 @@ function fmt(v,d=1){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v).toFixe
 function fmtDate(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T12:00:00');return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}
 
 function buildMonthFilter(){
-  const el=document.getElementById('monthFilter');
-  el.innerHTML=MOIS.map(function(m,i){
+  document.getElementById('monthFilter').innerHTML=MOIS.map(function(m,i){
     return '<button class="month-btn'+(i===selectedMonth?' active':'')+'" onclick="selectMonth('+i+')">'+m+'</button>';
   }).join('');
 }
 
-function selectMonth(i){
-  selectedMonth=i;
-  buildMonthFilter();
-  loadData();
-}
+function selectMonth(i){ selectedMonth=i; buildMonthFilter(); loadData(); }
+function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE(obsTimeLocal))='+selectedMonth; }
 
-function monthWhere(){
-  if(selectedMonth===0)return'';
-  return' AND EXTRACT(MONTH FROM DATE(obsTimeLocal))='+selectedMonth;
-}
-
-function recordCard(icon,iconClass,title,value,unit,date,heure,top10,asc,extra){
-  const allRows=top10.map(function(r,i){
-    const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra){
+  const topRows = top10.map(function(r,i){
+    const rc = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+    const heureCell = r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'';
+    const tmCell = (r.tmax!==null&&r.tmin!==null)?' <span style="color:#bbb;font-size:10px;">'+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°</span>':'';
     return '<tr>'
-      +'<td class="'+rankClass+'">'+(i+1)+'</td>'
+      +'<td class="'+rc+'">'+(i+1)+'</td>'
       +'<td>'+fmt(n(r.val))+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span></td>'
-      +'<td>'+fmtDate(r.jour)+(r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'')+(r.tmax!==null&&r.tmin!==null?' <span style="color:#bbb;font-size:10px;">'+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°</span>':'')+'</td>'
+      +'<td>'+fmtDate(r.jour)+heureCell+tmCell+'</td>'
       +'</tr>';
   });
-  const firstRow=allRows[0]||'';
-  const restRows=allRows.slice(1).join('');
+
+  const firstRow = topRows[0]||'';
+  const restRows = topRows.slice(1).join('');
+
   return '<div class="record-card">'
     +'<div class="record-header"><div class="record-icon '+iconClass+'">'+icon+'</div><div class="record-title">'+title+'</div></div>'
-    +'<div class="record-value-row"><div class="record-value">'+fmt(n(value))+'</div><div class="record-unit">'+unit+'</div></div>'
+    +'<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;"><div class="record-value">'+fmt(n(value))+'</div><div class="record-unit">'+unit+'</div></div>'
     +'<div class="record-date">Le <b>'+fmtDate(date)+'</b>'+(heure?' à <b>'+heure+'</b>':'')+'</div>'
-  +(extra?'<div style="font-size:11px;color:#888;margin:-6px 0 10px;">'+extra+'</div>':'')
-    +'<div class="top10-title">Top 10</div>'
+    +(extra?'<div class="record-extra">'+extra+'</div>':'')
+    +'<details>'
+    +'<summary>Top 10 <span class="arr">▼</span></summary>'
     +'<table class="top10-table"><tbody>'+firstRow+restRows+'</tbody></table>'
+    +'</details>'
     +'</div>';
 }
 
 async function loadData(){
   document.getElementById('content').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
-  const sub=selectedMonth===0?'Tous les mois':'Mois de '+MOIS[selectedMonth];
-  document.getElementById('top-sub').textContent=sub;
-
+  document.getElementById('top-sub').textContent=selectedMonth===0?'Tous les mois':'Mois de '+MOIS[selectedMonth];
   const W=monthWhere();
 
-  // Query journalière agrégée
   const qDaily="SELECT jour, temp_max, temp_min, temp_moy, amplitude, jour_min_max, jour_max_min FROM (SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, MAX(tempHigh)-MIN(tempLow) AS amplitude, MIN(tempHigh) AS jour_min_max, MAX(tempLow) AS jour_max_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour) ORDER BY jour";
-  const qTempMaxHeure="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempHigh DESC LIMIT 10";
-  const qTempMinHeure="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempLow ASC LIMIT 10";
+  const qTmaxH="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempHigh DESC LIMIT 10";
+  const qTminH="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempLow ASC LIMIT 10";
 
   try{
     const token=await getToken();
-    const [res, resTmaxH, resTminH] = await Promise.all([queryBQ(token,qDaily), queryBQ(token,qTempMaxHeure), queryBQ(token,qTempMinHeure)]);
-    const rows=parseRows(res);
-    const tempMaxHeures=parseRows(resTmaxH);
-    const tempMinHeures=parseRows(resTminH);
+    const [res,resTmaxH,resTminH]=await Promise.all([queryBQ(token,qDaily),queryBQ(token,qTmaxH),queryBQ(token,qTminH)]);
+    const days=parseRows(res);
+    const tmaxHeures=parseRows(resTmaxH);
+    const tminHeures=parseRows(resTminH);
 
-    if(!rows.length){
+    if(!days.length){
       document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
       return;
     }
 
-    // Calculer records
-    function top10By(key,asc,limit){
-      return rows.slice().sort(function(a,b){
+    function top10By(key,asc){
+      return days.slice().sort(function(a,b){
         const va=n(a[key]),vb=n(b[key]);
-        if(va===null)return 1;if(vb===null)return-1;
+        if(va===null)return 1; if(vb===null)return-1;
         return asc?va-vb:vb-va;
-      }).slice(0,limit||10).map(function(r){return{val:r[key],jour:r.jour,tmax:n(r.temp_max),tmin:n(r.temp_min)};});
+      }).slice(0,10).map(function(r){
+        return {val:r[key],jour:r.jour,tmax:n(r.temp_max),tmin:n(r.temp_min),heure:null};
+      });
     }
 
-    const t10TempMax=top10By('temp_max',false).map(function(r){
-      const h=tempMaxHeures.find(function(x){return x.jour===r.jour;});
-      return {val:r.val,jour:r.jour,heure:h?h.heure:null};
+    const t10TempMax = top10By('temp_max',false).map(function(r){
+      const h=tmaxHeures.find(function(x){return x.jour===r.jour;});
+      return Object.assign({},r,{heure:h?h.heure:null});
     });
-    const t10TempMin=top10By('temp_min',true).map(function(r){
-      const h=tempMinHeures.find(function(x){return x.jour===r.jour;});
-      return {val:r.val,jour:r.jour,heure:h?h.heure:null};
+    const t10TempMin = top10By('temp_min',true).map(function(r){
+      const h=tminHeures.find(function(x){return x.jour===r.jour;});
+      return Object.assign({},r,{heure:h?h.heure:null});
     });
-    const t10MoyHigh=top10By('temp_moy',false);
-    const t10MoyLow=top10By('temp_moy',true);
-    const t10AmpHigh=top10By('amplitude',false);
-    const t10AmpLow=top10By('amplitude',true);
-    const t10JourMinMax=top10By('jour_min_max',false); // jour où le MAX journalier est le plus bas
-    const t10JourMaxMin=top10By('jour_max_min',true);  // jour où le MIN journalier est le plus haut
+    const t10MoyHigh  = top10By('temp_moy',false);
+    const t10MoyLow   = top10By('temp_moy',true);
+    const t10AmpHigh  = top10By('amplitude',false);
+    const t10AmpLow   = top10By('amplitude',true);
+    const t10JMinMax  = top10By('jour_min_max',false);
+    const t10JMaxMin  = top10By('jour_max_min',true);
 
-    // Records absolus
-    const recTempMax=t10TempMax[0];
-    const recTempMin=t10TempMin[0];
-    const recMoyHigh=t10MoyHigh[0];
-    const recMoyLow=t10MoyLow[0];
-    const recAmpHigh=t10AmpHigh[0];
-    const recAmpLow=t10AmpLow[0];
-    const recJourMinMax=t10JourMinMax[0];
-    const recJourMaxMin=t10JourMaxMin[0];
+    const r0=t10TempMax[0], r1=t10TempMin[0], r2=t10MoyHigh[0], r3=t10MoyLow[0];
+    const r4=t10AmpHigh[0], r5=t10AmpLow[0], r6=t10JMinMax[0], r7=t10JMaxMin[0];
 
     const html=
-      '<div class="section-title">🌡️ Températures extrêmes</div><div class="card-grid">'
-      +recordCard('🥵','red','Température maximale absolue',recTempMax.val,'°C',recTempMax.jour,recTempMax.heure,t10TempMax,false)
-      +recordCard('🥶','blue','Température minimale absolue',recTempMin.val,'°C',recTempMin.jour,recTempMin.heure,t10TempMin,true)
-      +'</div><div class="section-title">📊 Moyennes journalières</div><div class="card-grid">'
-      +recordCard('🔥','red','Moyenne la plus élevée',recMoyHigh.val,'°C',recMoyHigh.jour,null,t10MoyHigh,false)
-      +recordCard('❄️','blue','Moyenne la plus basse',recMoyLow.val,'°C',recMoyLow.jour,null,t10MoyLow,true)
-      +'</div><div class="section-title">↕️ Amplitude thermique</div><div class="card-grid">'
-      +recordCard('📈','amber','Amplitude maximale',recAmpHigh.val,'°C',recAmpHigh.jour,null,t10AmpHigh,false,recAmpHigh.tmax!==null?'Max '+fmt(recAmpHigh.tmax)+'° · Min '+fmt(recAmpHigh.tmin)+'°':null)
-      +recordCard('📉','teal','Amplitude minimale',recAmpLow.val,'°C',recAmpLow.jour,null,t10AmpLow,true,recAmpLow.tmax!==null?'Max '+fmt(recAmpLow.tmax)+'° · Min '+fmt(recAmpLow.tmin)+'°':null)
-      +'</div><div class="section-title">🎯 Records atypiques</div><div class="card-grid">'
-      +recordCard('🌡️','purple','Température maximale la plus basse',recJourMinMax.val,'°C',recJourMinMax.jour,null,t10JourMinMax,false)
-      +recordCard('🌡️','amber','Température minimale la plus élevée',recJourMaxMin.val,'°C',recJourMaxMin.jour,null,t10JourMaxMin,true)
-      +'</div><div class="pb"></div>';
+      '<div class="section-title">🌡️ Températures extrêmes</div>'
+      +'<div class="card-grid">'
+      +recordCard('🥵','red','Température max absolue',r0.val,'°C',r0.jour,r0.heure,t10TempMax,null)
+      +recordCard('🥶','blue','Température min absolue',r1.val,'°C',r1.jour,r1.heure,t10TempMin,null)
+      +'</div>'
+      +'<div class="section-title">📊 Moyennes journalières</div>'
+      +'<div class="card-grid">'
+      +recordCard('🔥','red','Moyenne la plus élevée',r2.val,'°C',r2.jour,null,t10MoyHigh,null)
+      +recordCard('❄️','blue','Moyenne la plus basse',r3.val,'°C',r3.jour,null,t10MoyLow,null)
+      +'</div>'
+      +'<div class="section-title">↕️ Amplitude thermique</div>'
+      +'<div class="card-grid">'
+      +recordCard('📈','amber','Amplitude maximale',r4.val,'°C',r4.jour,null,t10AmpHigh,(r4.tmax!==null?'Max '+fmt(r4.tmax)+'° · Min '+fmt(r4.tmin)+'°':null))
+      +recordCard('📉','teal','Amplitude minimale',r5.val,'°C',r5.jour,null,t10AmpLow,(r5.tmax!==null?'Max '+fmt(r5.tmax)+'° · Min '+fmt(r5.tmin)+'°':null))
+      +'</div>'
+      +'<div class="section-title">🎯 Records atypiques</div>'
+      +'<div class="card-grid">'
+      +recordCard('🌡️','purple','Température max la plus basse',r6.val,'°C',r6.jour,null,t10JMinMax,null)
+      +recordCard('🌡️','amber','Température min la plus élevée',r7.val,'°C',r7.jour,null,t10JMaxMin,null)
+      +'</div>'
+      +'<div class="pb"></div>';
 
     document.getElementById('content').innerHTML=html;
 
