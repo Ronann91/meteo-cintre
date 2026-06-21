@@ -47,6 +47,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .rank-2 { color: #888 !important; }
 .rank-3 { color: #b8860b !important; }
 
+.card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 0 16px; margin-bottom: 4px; }
+.card-grid .record-card { margin: 0; }
+.card-grid .record-value { font-size: 26px; }
 .section-title { padding: 16px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
 
 .loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
@@ -146,19 +149,21 @@ function monthWhere(){
   return' AND EXTRACT(MONTH FROM DATE(obsTimeLocal))='+selectedMonth;
 }
 
-function recordCard(icon,iconClass,title,value,unit,date,top10,asc){
+function recordCard(icon,iconClass,title,value,unit,date,heure,top10,asc,extra){
   const rows=top10.map(function(r,i){
+    const heureStr=r.heure?' à <b>'+r.heure+'</b>':'';
     const rankClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
     return '<tr>'
       +'<td class="'+rankClass+'">'+(i+1)+'</td>'
       +'<td>'+fmt(n(r.val))+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span></td>'
-      +'<td>'+fmtDate(r.jour)+'</td>'
+      +'<td>'+fmtDate(r.jour)+(r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'')+(r.tmax!==null&&r.tmin!==null?' <span style="color:#bbb;font-size:10px;">('+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°)</span>':'')+'</td>'
       +'</tr>';
   }).join('');
   return '<div class="record-card">'
     +'<div class="record-header"><div class="record-icon '+iconClass+'">'+icon+'</div><div class="record-title">'+title+'</div></div>'
     +'<div class="record-value-row"><div class="record-value">'+fmt(n(value))+'</div><div class="record-unit">'+unit+'</div></div>'
-    +'<div class="record-date">Le <b>'+fmtDate(date)+'</b></div>'
+    +'<div class="record-date">Le <b>'+fmtDate(date)+'</b>'+(heure?' à <b>'+heure+'</b>':'')+'</div>'
+  +(extra?'<div style="font-size:11px;color:#888;margin:-6px 0 10px;">'+extra+'</div>':'')
     +'<div class="top10-title">Top 10</div>'
     +'<table class="top10-table">'+rows+'</table>'
     +'</div>';
@@ -173,11 +178,15 @@ async function loadData(){
 
   // Query journalière agrégée
   const qDaily="SELECT jour, temp_max, temp_min, temp_moy, amplitude, jour_min_max, jour_max_min FROM (SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, MAX(tempHigh)-MIN(tempLow) AS amplitude, MIN(tempHigh) AS jour_min_max, MAX(tempLow) AS jour_max_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour) ORDER BY jour";
+  const qTempMaxHeure="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempHigh DESC LIMIT 10";
+  const qTempMinHeure="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempLow ASC LIMIT 10";
 
   try{
     const token=await getToken();
-    const res=await queryBQ(token,qDaily);
+    const [res, resTmaxH, resTminH] = await Promise.all([queryBQ(token,qDaily), queryBQ(token,qTempMaxHeure), queryBQ(token,qTempMinHeure)]);
     const rows=parseRows(res);
+    const tempMaxHeures=parseRows(resTmaxH);
+    const tempMinHeures=parseRows(resTminH);
 
     if(!rows.length){
       document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
@@ -193,12 +202,24 @@ async function loadData(){
       }).slice(0,limit||10).map(function(r){return{val:r[key],jour:r.jour};});
     }
 
-    const t10TempMax=top10By('temp_max',false);
-    const t10TempMin=top10By('temp_min',true);
+    const t10TempMax=top10By('temp_max',false).map(function(r){
+      const h=tempMaxHeures.find(function(x){return x.jour===r.jour;});
+      return {val:r.val,jour:r.jour,heure:h?h.heure:null};
+    });
+    const t10TempMin=top10By('temp_min',true).map(function(r){
+      const h=tempMinHeures.find(function(x){return x.jour===r.jour;});
+      return {val:r.val,jour:r.jour,heure:h?h.heure:null};
+    });
     const t10MoyHigh=top10By('temp_moy',false);
     const t10MoyLow=top10By('temp_moy',true);
-    const t10AmpHigh=top10By('amplitude',false);
-    const t10AmpLow=top10By('amplitude',true);
+    const t10AmpHigh=top10By('amplitude',false).map(function(r){
+      const day=rows.find(function(x){return x.jour===r.jour;});
+      return {val:r.val,jour:r.jour,tmax:day?n(day.temp_max):null,tmin:day?n(day.temp_min):null};
+    });
+    const t10AmpLow=top10By('amplitude',true).map(function(r){
+      const day=rows.find(function(x){return x.jour===r.jour;});
+      return {val:r.val,jour:r.jour,tmax:day?n(day.temp_max):null,tmin:day?n(day.temp_min):null};
+    });
     const t10JourMinMax=top10By('jour_min_max',false); // jour où le MAX journalier est le plus bas
     const t10JourMaxMin=top10By('jour_max_min',true);  // jour où le MIN journalier est le plus haut
 
@@ -213,19 +234,19 @@ async function loadData(){
     const recJourMaxMin=t10JourMaxMin[0];
 
     const html=
-      '<div class="section-title">🌡️ Températures extrêmes</div>'
-      +recordCard('🥵','red','Température maximale absolue',recTempMax.val,'°C',recTempMax.jour,t10TempMax,false)
-      +recordCard('🥶','blue','Température minimale absolue',recTempMin.val,'°C',recTempMin.jour,t10TempMin,true)
-      +'<div class="section-title">📊 Moyennes journalières</div>'
-      +recordCard('🔥','red','Moyenne la plus élevée',recMoyHigh.val,'°C',recMoyHigh.jour,t10MoyHigh,false)
-      +recordCard('❄️','blue','Moyenne la plus basse',recMoyLow.val,'°C',recMoyLow.jour,t10MoyLow,true)
-      +'<div class="section-title">↕️ Amplitude thermique</div>'
-      +recordCard('📈','amber','Amplitude maximale',recAmpHigh.val,'°C',recAmpHigh.jour,t10AmpHigh,false)
-      +recordCard('📉','teal','Amplitude minimale',recAmpLow.val,'°C',recAmpLow.jour,t10AmpLow,true)
-      +'<div class="section-title">🎯 Records atypiques</div>'
-      +recordCard('🌡️','purple','Max journalier le plus bas (jour le plus froid malgré tout)',recJourMinMax.val,'°C',recJourMinMax.jour,t10JourMinMax,false)
-      +recordCard('🌡️','amber','Min journalier le plus haut (nuit la plus chaude)',recJourMaxMin.val,'°C',recJourMaxMin.jour,t10JourMaxMin,true)
-      +'<div class="pb"></div>';
+      '<div class="section-title">🌡️ Températures extrêmes</div><div class="card-grid">'
+      +recordCard('🥵','red','Température maximale absolue',recTempMax.val,'°C',recTempMax.jour,recTempMax.heure,t10TempMax,false)
+      +recordCard('🥶','blue','Température minimale absolue',recTempMin.val,'°C',recTempMin.jour,recTempMin.heure,t10TempMin,true)
+      +'</div><div class="section-title">📊 Moyennes journalières</div><div class="card-grid">'
+      +recordCard('🔥','red','Moyenne la plus élevée',recMoyHigh.val,'°C',recMoyHigh.jour,null,t10MoyHigh,false)
+      +recordCard('❄️','blue','Moyenne la plus basse',recMoyLow.val,'°C',recMoyLow.jour,null,t10MoyLow,true)
+      +'</div><div class="section-title">↕️ Amplitude thermique</div><div class="card-grid">'
+      +recordCard('📈','amber','Amplitude maximale',recAmpHigh.val,'°C',recAmpHigh.jour,null,t10AmpHigh,false,recAmpHigh.tmax!==null?'Max '+fmt(recAmpHigh.tmax)+'° · Min '+fmt(recAmpHigh.tmin)+'°':null)
+      +recordCard('📉','teal','Amplitude minimale',recAmpLow.val,'°C',recAmpLow.jour,null,t10AmpLow,true,recAmpLow.tmax!==null?'Max '+fmt(recAmpLow.tmax)+'° · Min '+fmt(recAmpLow.tmin)+'°':null)
+      +'</div><div class="section-title">🎯 Records atypiques</div><div class="card-grid">'
+      +recordCard('🌡️','purple','Max journalier le plus bas (jour le plus froid malgré tout)',recJourMinMax.val,'°C',recJourMinMax.jour,null,t10JourMinMax,false)
+      +recordCard('🌡️','amber','Min journalier le plus haut (nuit la plus chaude)',recJourMaxMin.val,'°C',recJourMaxMin.jour,null,t10JourMaxMin,true)
+      +'</div><div class="pb"></div>';
 
     document.getElementById('content').innerHTML=html;
 
