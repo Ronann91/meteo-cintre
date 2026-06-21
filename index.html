@@ -501,13 +501,10 @@ async function loadData() {
       {label:'Rafale',data:rows.map(r=>n(r.rafale)),borderColor:'#ccc',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
     ]);
 
-    const ensCumul = [];
-    let cumMin = 0;
-    rows.forEach(r => { if(n(r.soleil)>120) cumMin+=5; ensCumul.push(cumMin); });
     makeChart('cSoleil','bar',labels,[
-      {label:'W/m²',data:rows.map(r=>n(r.soleil)),backgroundColor:'rgba(245,197,24,0.65)',borderRadius:2,yAxisID:'y'},
-      {label:'Ens. cumulé (min)',data:ensCumul,type:'line',borderColor:'#e8a020',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,yAxisID:'y2'}
-    ],{y0:true,y2:true});
+      {label:'Ensoleillement',data:rows.map(r=>n(r.soleil)>150?n(r.soleil):null),backgroundColor:'rgba(245,197,24,0.5)',borderRadius:0,yAxisID:'y'},
+      {label:'W/m²',data:rows.map(r=>n(r.soleil)),type:'line',borderColor:'#e8a020',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,yAxisID:'y'}
+    ],{y0:true});
 
   } catch(e) {
     document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">⚠️ ${e.message}</div></div>`;
