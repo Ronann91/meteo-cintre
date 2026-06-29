@@ -216,15 +216,16 @@ async function loadData(){
   const qPrecip5min="SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure,somme AS val FROM `meteo_cintre.data_5_min`"+WP+" ORDER BY somme DESC LIMIT 10";
   const qIntensiteMax="SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure,precipRate AS val FROM `meteo_cintre.data_5_min`"+WP+" ORDER BY precipRate DESC LIMIT 10";
   const qPrecip1h="SELECT jour,heure_debut,cumul_1h,ts FROM (SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure_debut,UNIX_SECONDS(obsTimeLocal) AS ts,SUM(somme) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS cumul_1h,UNIX_SECONDS(obsTimeLocal)-MIN(UNIX_SECONDS(obsTimeLocal)) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS span_sec FROM `meteo_cintre.data_5_min`"+WP+") WHERE span_sec<=3600 ORDER BY cumul_1h DESC LIMIT 100";
+  const qPrecip24h="SELECT jour,heure_debut,cumul_24h,ts FROM (SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure_debut,UNIX_SECONDS(obsTimeLocal) AS ts,SUM(somme) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 287 PRECEDING AND CURRENT ROW) AS cumul_24h,UNIX_SECONDS(obsTimeLocal)-MIN(UNIX_SECONDS(obsTimeLocal)) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 287 PRECEDING AND CURRENT ROW) AS span_sec FROM `meteo_cintre.data_5_min`"+WP+") WHERE span_sec<=86400 ORDER BY cumul_24h DESC LIMIT 100";
   const qMoisPluvieux="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeLocal)) AS mois,SUM(somme) AS total FROM `meteo_cintre.data_5_min`"+WP+" GROUP BY mois ORDER BY total DESC LIMIT 10";
   const qMoisSec="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeLocal)) AS mois,SUM(somme) AS total FROM `meteo_cintre.data_5_min`"+WP+" GROUP BY mois ORDER BY total ASC LIMIT 10";
 
   try{
     const token=await getToken();
-    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resP1h,resMPluvieux,resMSec]=await Promise.all([
+    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resP1h,resP24h,resMPluvieux,resMSec]=await Promise.all([
       queryBQ(token,qDaily),queryBQ(token,qDailyAll),queryBQ(token,qTmaxH),queryBQ(token,qTminH),
       queryBQ(token,qPrecipJour),queryBQ(token,qPrecip5min),queryBQ(token,qIntensiteMax),
-      queryBQ(token,qPrecip1h),queryBQ(token,qMoisPluvieux),queryBQ(token,qMoisSec)
+      queryBQ(token,qPrecip1h),queryBQ(token,qPrecip24h),queryBQ(token,qMoisPluvieux),queryBQ(token,qMoisSec)
     ]);
 
     const days=parseRows(res);
@@ -235,6 +236,7 @@ async function loadData(){
     const precip5min=parseRows(resP5);
     const intensiteMax=parseRows(resInt);
     const precip1h=parseRows(resP1h);
+    const precip24h=parseRows(resP24h);
     const moisPluvieux=parseRows(resMPluvieux);
     const moisSec=parseRows(resMSec);
 
@@ -261,6 +263,15 @@ async function loadData(){
 
     const t10PrecipJour=precipJour.map(function(r){return {val:n(r.total),label:fmtDate(r.jour)};});
     const t10Precip5min=precip5min.map(function(r){return {val:n(r.val),label:fmtDate(r.jour)+' à '+r.heure};});
+    const noOverlap24h=(function(){
+      const kept=[]; const gap=86400;
+      precip24h.forEach(function(r){
+        const ts=parseFloat(r.ts);
+        if(!kept.some(function(k){return Math.abs(parseFloat(k.ts)-ts)<gap;})) kept.push(r);
+      });
+      return kept.slice(0,10);
+    })();
+    const t10Precip24h=noOverlap24h.map(function(r){return {val:n(r.cumul_24h),label:fmtDate(r.jour)+' à '+r.heure_debut};});
     const t10Intensite=intensiteMax.map(function(r){return {val:n(r.val),label:fmtDate(r.jour)+' à '+r.heure};});
     // Filtrage non-chevauchant 1h : exclure toute fenêtre dont le timestamp est à moins de 3600s d'une fenêtre déjà retenue
     const noOverlap1h = (function(){
@@ -277,7 +288,7 @@ async function loadData(){
 
     const r0=t10TempMax[0],r1=t10TempMin[0],r2=t10MoyHigh[0],r3=t10MoyLow[0];
     const r4=t10AmpHigh[0],r5=t10AmpLow[0],r6=t10JMinMax[0],r7=t10JMaxMin[0];
-    const p0=t10PrecipJour[0],p1=t10Precip1h[0],p2=t10Precip5min[0],p3=t10Intensite[0];
+    const p0=t10PrecipJour[0],p1=t10Precip1h[0],p2=t10Precip5min[0],p3=t10Intensite[0],p6=t10Precip24h[0];
     const p4=t10MPluvieux[0],p5=t10MSec[0];
 
     const htmlTemp=
@@ -306,6 +317,10 @@ async function loadData(){
       '<div class="section-title">🌧️ Cumuls</div>'
       +'<div class="card-grid">'
       +recordCardPrecip('📅','blue','Précip. max en 1 journée',p0?p0.val:null,'mm',p0?p0.label:'—',t10PrecipJour,null)
+      +recordCardPrecip('🕐','purple','Précip. max sur 24h glissantes',p6?p6.val:null,'mm',p6?p6.label:'—',t10Precip24h,null)
+      +'</div>'
+      +'<div class="section-title">⏱️ Courtes durées</div>'
+      +'<div class="card-grid">'
       +recordCardPrecip('⏱️','teal','Précip. max sur 1h glissante',p1?p1.val:null,'mm',p1?p1.label:'—',t10Precip1h,null)
       +'</div>'
       +'<div class="section-title">⚡ Intensité</div>'
