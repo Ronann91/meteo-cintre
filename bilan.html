@@ -298,7 +298,7 @@ async function loadData(){
     ROUND(COUNTIF(winddirAvg>=135 AND winddirAvg<225)*100.0/COUNT(*),0) AS pct_s,
     ROUND(COUNTIF(winddirAvg>=45 AND winddirAvg<135)*100.0/COUNT(*),0) AS pct_e,
     ROUND(COUNTIF(winddirAvg>=225 AND winddirAvg<315)*100.0/COUNT(*),0) AS pct_o
-  FROM \`meteo_cintre.data_5_min\` ${W} WHERE winddirAvg IS NOT NULL`;
+  FROM \`meteo_cintre.data_5_min\` ${W} AND winddirAvg IS NOT NULL`;
 
   // ---- Jour avec vent moy max ----
   const qVentMax = `SELECT DATE(obsTimeLocal) AS jour, AVG(windspeedAvg) AS vent_moy_jour
