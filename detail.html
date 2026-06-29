@@ -169,6 +169,7 @@ function heatColor(val,min,max,type) {
   if(type==='temp') return 'background:rgba('+(Math.round(55+r*180))+','+(Math.round(130-r*80))+','+(Math.round(221-r*190))+',0.18);';
   if(type==='rain') return 'background:rgba(74,158,221,'+(0.08+r*0.35)+');';
   if(type==='wind') return 'background:rgba(29,158,117,'+(0.08+r*0.35)+');';
+  if(type==='humidity') return 'background:rgba(100,180,255,'+(0.08+r*0.35)+');';
   return '';
 }
 
@@ -196,10 +197,33 @@ function makeChart(id,type,labels,datasets,opts) {
   });
 }
 
+function windDirLabel(deg) {
+  if(deg===null||deg===undefined||deg==='') return '—';
+  const d = parseFloat(deg);
+  if(isNaN(d)) return '—';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+  return dirs[Math.round(d/22.5)%16];
+}
+
 function showModal(heure) {
   const rows = rawRows.filter(r=>r.heure.startsWith(heure+':'));
   if(!rows.length) return;
-  const html = '<div class="modal-overlay" onclick="closeModal(event)"><div class="modal"><div class="modal-header"><div class="modal-title">Détail '+heure+'h — '+rows.length+' mesures</div><button class="modal-close" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">✕</button></div><div style="overflow-x:auto;"><table class="detail-table"><thead><tr><th>Heure</th><th>T°Max</th><th>T°Min</th><th>T°Moy</th><th>Pluie</th><th>Intensité</th><th>Vent</th><th>Rafale</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+r.heure+'</td><td>'+fmt(n(r.tempHigh))+'°</td><td>'+fmt(n(r.tempLow))+'°</td><td>'+fmt(n(r.tempAvg))+'°</td><td>'+fmt(n(r.pluie))+' mm</td><td>'+fmt(n(r.pluie_rate))+' mm/h</td><td>'+fmt(n(r.vent))+' km/h</td><td>'+fmt(n(r.rafale))+' km/h</td></tr>';}).join('')+'</tbody></table></div></div></div>';
+  const mm2 = function(arr,key){const v=arr.map(function(r){return n(r[key]);}).filter(function(x){return x!==null;});return v.length?[Math.min.apply(null,v),Math.max.apply(null,v)]:[0,0];};
+  const thR=mm2(rows,'tempHigh'); const tlR=mm2(rows,'tempLow'); const taR=mm2(rows,'tempAvg');
+  const plR=mm2(rows,'pluie'); const prR=mm2(rows,'pluie_rate');
+  const vR=mm2(rows,'vent'); const rR=mm2(rows,'rafale'); const hR=mm2(rows,'humidite');
+  const html = '<div class="modal-overlay" onclick="closeModal(event)"><div class="modal"><div class="modal-header"><div class="modal-title">Détail '+heure+'h \u2014 '+rows.length+' mesures</div><button class="modal-close" onclick="document.getElementById(\'modal-container\').innerHTML=\'\'">✕</button></div><div style="overflow-x:auto;"><table class="detail-table"><thead><tr><th>Heure</th><th>T°Max</th><th>T°Min</th><th>T°Moy</th><th>Pluie</th><th>Intensité</th><th>Vent</th><th>Rafale</th><th>Dir.</th><th>Humidité</th></tr></thead><tbody>'+rows.map(function(r){return '<tr>'
+    +'<td>'+r.heure+'</td>'
+    +'<td style="'+heatColor(n(r.tempHigh),thR[0],thR[1],'temp')+'">'+fmt(n(r.tempHigh))+'°</td>'
+    +'<td style="'+heatColor(n(r.tempLow),tlR[0],tlR[1],'temp')+'">'+fmt(n(r.tempLow))+'°</td>'
+    +'<td style="'+heatColor(n(r.tempAvg),taR[0],taR[1],'temp')+'">'+fmt(n(r.tempAvg))+'°</td>'
+    +'<td style="'+heatColor(n(r.pluie),plR[0],plR[1],'rain')+'">'+fmt(n(r.pluie))+' mm</td>'
+    +'<td style="'+heatColor(n(r.pluie_rate),prR[0],prR[1],'rain')+'">'+(n(r.pluie_rate)>0?fmt(n(r.pluie_rate))+' mm/h':'—')+'</td>'
+    +'<td style="'+heatColor(n(r.vent),vR[0],vR[1],'wind')+'">'+fmt(n(r.vent))+' km/h</td>'
+    +'<td style="'+heatColor(n(r.rafale),rR[0],rR[1],'wind')+'">'+fmt(n(r.rafale))+' km/h</td>'
+    +'<td>'+windDirLabel(r.dir_vent)+'</td>'
+    +'<td style="'+heatColor(n(r.humidite),hR[0],hR[1],'humidity')+'">'+fmt(n(r.humidite),0)+'%</td>'
+    +'</tr>';}).join('')+'</tbody></table></div></div></div>';
   document.getElementById('modal-container').innerHTML = html;
 }
 
@@ -214,6 +238,7 @@ function buildHourlyTable(rows) {
   const agg = hours.map(function(h){
     const rr=byHour[h];
     const vals = function(key){return rr.map(function(r){return n(r[key]);}).filter(function(v){return v!==null;});};
+    const lastDir = rr[rr.length-1].dir_vent;
     return {
       heure:h+'h',
       temp_max:Math.max.apply(null,vals('tempHigh')),
@@ -222,17 +247,21 @@ function buildHourlyTable(rows) {
       pluie:vals('pluie').reduce(function(a,b){return a+b;},0),
       intensite_max:Math.max.apply(null,vals('pluie_rate')),
       vent_moy:vals('vent').reduce(function(a,b){return a+b;},0)/vals('vent').length,
-      vent_max:Math.max.apply(null,vals('rafale'))
+      vent_max:Math.max.apply(null,vals('rafale')),
+      dir_vent:lastDir,
+      humidite_moy:vals('humidite').reduce(function(a,b){return a+b;},0)/vals('humidite').length
     };
   });
-  function mm(arr){return [Math.min.apply(null,arr.filter(isFinite)),Math.max.apply(null,arr.filter(isFinite))];}
+  function mm(arr){const f=arr.filter(isFinite);return f.length?[Math.min.apply(null,f),Math.max.apply(null,f)]:[0,0];}
   const tmxR=mm(agg.map(function(r){return r.temp_max;}));
   const tmnR=mm(agg.map(function(r){return r.temp_min;}));
   const tmyR=mm(agg.map(function(r){return r.temp_moy;}));
   const plR=mm(agg.map(function(r){return r.pluie;}));
-  const inR=mm(agg.map(function(r){return r.intensite_max;}));
+  const allIn=agg.map(function(r){return r.intensite_max;}).filter(function(v){return isFinite(v)&&v>0;});
+  const inR=allIn.length?[Math.min.apply(null,allIn),Math.max.apply(null,allIn)]:[0,0];
   const vmR=mm(agg.map(function(r){return r.vent_moy;}));
   const vxR=mm(agg.map(function(r){return r.vent_max;}));
+  const hmR=mm(agg.map(function(r){return r.humidite_moy;}));
   const rows_html = agg.map(function(r){
     const h=r.heure.replace('h','');
     return '<tr onclick="showModal(\''+h+'\')">'
@@ -244,9 +273,11 @@ function buildHourlyTable(rows) {
       +'<td style="'+heatColor(r.intensite_max,inR[0],inR[1],'rain')+'">'+(isFinite(r.intensite_max)&&r.intensite_max>0?fmt(r.intensite_max)+' mm/h':'—')+'</td>'
       +'<td style="'+heatColor(r.vent_moy,vmR[0],vmR[1],'wind')+'">'+fmt(r.vent_moy)+'</td>'
       +'<td style="'+heatColor(r.vent_max,vxR[0],vxR[1],'wind')+'">'+(isFinite(r.vent_max)?fmt(r.vent_max):'—')+'</td>'
+      +'<td>'+windDirLabel(r.dir_vent)+'</td>'
+      +'<td style="'+heatColor(r.humidite_moy,hmR[0],hmR[1],'humidity')+'">'+fmt(r.humidite_moy,0)+'%</td>'
       +'</tr>';
   }).join('');
-  return '<div class="table-section"><div class="section-header" style="padding-left:0;">Tableau horaire — cliquer pour le détail</div><div class="table-card"><div class="table-wrap"><table><thead><tr><th>Heure</th><th>T°Max</th><th>T°Min</th><th>T°Moy</th><th>Pluie</th><th>Intens.</th><th>Vent</th><th>Rafale</th></tr></thead><tbody>'+rows_html+'</tbody></table></div></div></div>';
+  return '<div class="table-section"><div class="section-header" style="padding-left:0;">Tableau horaire — cliquer pour le détail</div><div class="table-card"><div class="table-wrap"><table><thead><tr><th>Heure</th><th>T°Max</th><th>T°Min</th><th>T°Moy</th><th>Pluie</th><th>Intens.</th><th>Vent</th><th>Rafale</th><th>Dir.</th><th>Humidité</th></tr></thead><tbody>'+rows_html+'</tbody></table></div></div></div>';
 }
 
 function getSelectedDate() {
@@ -260,13 +291,13 @@ async function loadData() {
   document.getElementById('top-sub').textContent = new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>';
 
-  const qKpi = "SELECT MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max, MAX(windgustHigh) AS vent_rafale_max, AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min, MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min, SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "'";
+  const qKpi = "SELECT MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max, MAX(windgustHigh) AS vent_rafale_max, AVG(windspeedAvg) AS vent_moy_jour, AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min, MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min, AVG(pressureMax) AS pression_moy, SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "'";
 
-  const qLast = "SELECT tempHigh AS temp_actuelle, windgustHigh AS vent_actuel, humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle, solarRadiationHigh AS soleil_actuel, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal DESC LIMIT 1";
+  const qLast = "SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel, humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle, solarRadiationHigh AS soleil_actuel, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal DESC LIMIT 1";
 
-  const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal) AS heure_temp_max, FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal) AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal) AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal) AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal) AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal) AS heure_vent_max FROM (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max";
+  const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal) AS heure_temp_max, FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal) AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal) AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal) AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal) AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal) AS heure_vent_max, FORMAT_TIMESTAMP('%H:%M', pr_max.obsTimeLocal) AS heure_pression_max, FORMAT_TIMESTAMP('%H:%M', pr_min.obsTimeLocal) AS heure_pression_min FROM (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY pressureMax DESC LIMIT 1) pr_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY pressureMin ASC LIMIT 1) pr_min";
 
-  const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, humidityAvg AS humidite, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal ASC";
+  const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal ASC";
 
   try {
     const token = await getToken();
@@ -304,10 +335,10 @@ async function loadData() {
       +'</div>'
       +'<div class="kpi-grid">'
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon blue">🌧️</div><div class="kpi-card-title">Pluie du jour</div></div><div class="kpi-card-value">'+fmt(k.pluie_total)+'<span class="kpi-card-unit"> mm</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.pluie_rate_max)+' mm/h</b><span>Intensité max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_pluie_max||'—')+'</b><span>heure max</span></div></div></div>'
-        +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div><div class="kpi-card-value">'+fmt(n(last.vent_actuel),1)+'<span class="kpi-card-unit"> km/h</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.vent_rafale_max)+' km/h</b><span>Rafale max (56s)</span></div><div class="kpi-sub-item"><b>'+(ex.heure_vent_max||'—')+'</b><span>heure max</span></div></div></div>'
+        +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div><div class="kpi-card-value">'+fmt(k.vent_moy_jour,1)+'<span class="kpi-card-unit"> km/h</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.vent_rafale_max,1)+' km/h</b><span>Rafale max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_vent_max||'—')+'</b><span>heure rafale max</span></div></div></div>'
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon amber">☀️</div><div class="kpi-card-title">Ensoleillement</div></div><div class="kpi-card-value">'+ensStr+'</div><div class="kpi-sub-single">Rayonnement max<br><b>'+fmt(n(k.pluie_rate_max),0)+' W/m²</b></div></div>'
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon pink">💦</div><div class="kpi-card-title">Humidité</div></div><div class="kpi-card-value">'+fmt(k.humidite_moy,0)+'<span class="kpi-card-unit">%</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>↑ '+fmt(k.humidite_max,0)+'%</b><span>'+(ex.heure_hum_max||'—')+'</span></div><div class="kpi-sub-item"><b>↓ '+fmt(k.humidite_min,0)+'%</b><span>'+(ex.heure_hum_min||'—')+'</span></div></div></div>'
-        +'<div class="kpi-card full"><div class="kpi-card-header"><div class="kpi-icon purple">🔵</div><div class="kpi-card-title">Pression</div></div><div class="kpi-card-value">'+fmt(n(last.pression_actuelle),0)+'<span class="kpi-card-unit"> hPa</span></div><div class="kpi-sub-single">↑ <b>'+fmt(k.pression_max,0)+' hPa</b> &nbsp;·&nbsp; ↓ <b>'+fmt(k.pression_min,0)+' hPa</b></div></div>'
+        +'<div class="kpi-card full"><div class="kpi-card-header"><div class="kpi-icon purple">🔵</div><div class="kpi-card-title">Pression</div></div><div class="kpi-card-value">'+fmt(k.pression_moy,0)+'<span class="kpi-card-unit"> hPa</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>↑ '+fmt(k.pression_max,0)+' hPa</b><span>'+(ex.heure_pression_max||'—')+'</span></div><div class="kpi-sub-item"><b>↓ '+fmt(k.pression_min,0)+' hPa</b><span>'+(ex.heure_pression_min||'—')+'</span></div></div></div>'
       +'</div>'
       +'<div class="section-header">Graphiques</div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div><canvas id="cTemp"></canvas></div>'
