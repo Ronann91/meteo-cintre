@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Météo — Cintré | Bilan mensuel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+.top-bar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 14px 16px 26px; color: white; }
+.top-bar-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.top-bar-title { font-size: 18px; font-weight: 700; }
+.top-bar-sub { font-size: 11px; opacity: 0.75; }
+.top-bar-controls { display: flex; gap: 8px; align-items: center; }
+input[type=month] { border: none; background: rgba(255,255,255,0.2); color: white; border-radius: 20px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+input[type=month]::-webkit-calendar-picker-indicator { filter: invert(1); }
+.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
+.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card.full { grid-column: span 2; }
+.kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.kpi-icon.blue { background: #e8f4ff; } .kpi-icon.teal { background: #e6f9f3; }
+.kpi-icon.amber { background: #fff8e6; } .kpi-icon.purple { background: #f3eeff; }
+.kpi-icon.pink { background: #fff0f5; } .kpi-icon.red { background: #fff0ee; }
+.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
+.kpi-sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 7px; }
+.kpi-sub-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 7px; }
+.kpi-sub-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; margin-top: 7px; }
+.kpi-sub-item { font-size: 10px; color: #bbb; line-height: 1.6; }
+.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: #555; }
+.kpi-sub-item span { font-size: 10px; color: #ccc; }
+.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: #555; font-weight: 500; }
+
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+.wind-rose-wrap { display: flex; justify-content: center; padding: 8px 0 4px; }
+
+.table-section { padding: 0 16px 24px; }
+.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th:first-child { text-align: left; padding-left: 12px; }
+tbody tr { border-bottom: 0.5px solid #f5f5f5; }
+tbody tr:hover { background: #f9f9ff; }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #667eea; }
+
+.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
+.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+@keyframes spin { to { transform: rotate(360deg); } }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav a.active { color: #667eea; font-weight: 600; }
+.pb { padding-bottom: 80px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-row1">
+    <div>
+      <div style="font-size:11px;opacity:0.75;">📍 Cintré, Bretagne</div>
+      <div class="top-bar-title">📆 Bilan mensuel</div>
+    </div>
+    <div class="top-bar-controls">
+      <input type="month" id="monthPicker" onchange="loadData()">
+      <button class="refresh-btn" onclick="loadData()">↻</button>
+    </div>
+  </div>
+  <div class="top-bar-sub" id="top-sub">Chargement...</div>
+</div>
+
+<div id="content"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
+<div id="modal-container"></div>
+
+<nav>
+  <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
+  <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
+  <a href="bilan.html" class="active"><span style="font-size:20px;">📆</span>Bilan</a>
+  <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
+</nav>
+
+<script>
+const SA = {
+  project_id: "mystic-aileron-471209-p6",
+  client_email: "app-perso@mystic-aileron-471209-p6.iam.gserviceaccount.com",
+  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBjetWxhjhSL4F\nWqQzif3uQoHH8tFceFmKHX0zg8qy9XZjSmpZApkBL1m/UX3VoHEehPd7aLMuC86j\nzvSfvv3kh1fZBzXtW6OGmlDgMLIIFzXJfd9efe24iX7CzGTuQPa6MG+/kg+KlKUT\nXvTOpT8pRLCcIDqkUGpCT0QGERCbQ0oueQXRA9JwXyOfJoukODhWqsgMPEoIt+xV\nFt3WqQQXAeyvHOP6oA4mSJisk7ShrVXKN9R4ik1LO/jXlRlEH2MH3mYbalSHyeic\n/tHkQjJ6wP61NjhQnInqWo7Tny4qtrPwpU3kj+Y7uoDWAiVYIAsLLR62h7YAPNEZ\noD6OFZkvAgMBAAECggEADPR1TIUM1ENcqJoVBHgXfXOJITtw5OoPQC3SG/kVv52r\nU2D/Nj70w74KGUKYlAxdlefbcrCi0ZGrvo4TFIAhmUKv0BBp/R2Vl+RLRn4r5Fu9\nV2Or6DSwjRny2JH6rXG+sd6dFCrwDFv/oojIBO7Nh/MXiROlKStSuWZ5zJgmzuV3\nlW63l7RRLujmr5Z4kaNK8x1EMmhNHg7FvBLJ7MdHOXQh8zPE+1YC9laBqQwZaEvJ\nq51hNKTWFhB5pg4SqL+0pbgzQ4Wg58grIhRaw6z9YYwgFPc59YSRB5xUCfTUt6Hg\nILw9O3Z5CNRKBLzA6Q6jIyzbLEyOGcZTy0Sq2AJr+QKBgQD7E8KPh96aykXYxnvz\nc7jd6Irb3H0Dyd1P2kKb9C6FWWW+XU4wcOws49WMBAp03KJm/h2rEvbzXk1u1eHL\n/SwVhRuZkrTluIitvyvC3TZKCXZGLVKhbRq1TKuqoV2V1vV5Re29E0abliRWhFoP\n2ZFGrIMngvck/knyV63b3U82SQKBgQDFWW7hh0abOnn2KlVR8h4l6Sp/N3Nu1//U\nE9mY9IeCZ2PlwefnCQRuAW/tX6/FGerOne+RmUfoCkEqaOYQNoAiNhzhRLIF4cey\nyJxpsHuFFLssuNX3brm8y1vdQ5FdPSnp1KC/nHUt23bGqo2yO8pBL3rCsl6diTRJ\n5xEMMHtztwKBgDigi0gN79HffwNWOMx+tBowgWj3AKcjFywUYOOFnhxrPjxCFQlt\n3oZ9WEN9AdK7lFFATPaxj0ryYOp3iLaWQiQUYlYvtWb+SK1PKZKIi98E5U0Mmc9Y\nqSZsxWb1gAL0eWbBs83qFAmxQj7VGO7sNgzHickWi6EnTQxAZDDraBspAoGBAIS7\nzS8VHDElmIgwGuidzxcyhym/cv03fFL48t7EgSv9PBx5We9zii4u+0gNlpwb/Wjw\nowQrs0hnNUNAAJUhAvd/q9b7rDz2iak+8qzHTZzJv8apnwfnyjcoE+ZzHp82ly01\nnNSjd9DbDj0600jwm+1R8OBoteiBMtEN/9JR/YZrAoGBANo/HPFk8NnGUINr4bSW\nosfCWI+R6Rq0sNZZE0vu8xPGQA4rEum3fzxTJ66Cshrc2F4ImNjCnN5UhzElMhcI\nSYIXajR5XLsO86ZI8UvFCkI0WuKi5Jx1H9oXOe0DjdOlMR1jnbfEJB8sq3zfb6+o\nvyfjf+yZS/InhZSVb7SclMU+\n-----END PRIVATE KEY-----\n"
+};
+
+let charts = {};
+
+function b64url(s){return btoa(unescape(encodeURIComponent(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
+function b64urlB(a){let s='';a.forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
+
+async function getToken(){
+  const now=Math.floor(Date.now()/1000);
+  const h=b64url(JSON.stringify({alg:"RS256",typ:"JWT"}));
+  const p=b64url(JSON.stringify({iss:SA.client_email,scope:"https://www.googleapis.com/auth/bigquery",aud:"https://oauth2.googleapis.com/token",exp:now+3600,iat:now}));
+  const sig=h+"."+p;
+  const pem=SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
+  const der=Uint8Array.from(atob(pem),c=>c.charCodeAt(0));
+  const key=await crypto.subtle.importKey("pkcs8",der.buffer,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);
+  const bytes=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,new TextEncoder().encode(sig));
+  const jwt=sig+"."+b64urlB(new Uint8Array(bytes));
+  const r=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="+jwt});
+  const d=await r.json();
+  if(!d.access_token)throw new Error("Auth: "+JSON.stringify(d));
+  return d.access_token;
+}
+
+async function queryBQ(token,sql){
+  const r=await fetch("https://bigquery.googleapis.com/bigquery/v2/projects/"+SA.project_id+"/queries",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+    body:JSON.stringify({query:sql,useLegacySql:false,timeoutMs:30000,location:"europe-west9"})
+  });
+  const d=await r.json();
+  if(d.error)throw new Error(d.error.message);
+  return d;
+}
+
+function parseRows(res){
+  if(!res.rows)return[];
+  const f=res.schema.fields.map(f=>f.name);
+  return res.rows.map(r=>{const o={};r.f.forEach((v,i)=>o[f[i]]=v.v);return o;});
+}
+
+function n(v){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v):null;}
+function fmt(v,d=1){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v).toFixed(d):'—';}
+function pad(x){return String(x).padStart(2,'0');}
+function fmtDate(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T12:00:00');return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});}
+function fmtDateFull(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T12:00:00');return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});}
+
+function heatColor(val,min,max,type){
+  if(val===null||!isFinite(val)||min===max)return'';
+  const r=Math.max(0,Math.min(1,(val-min)/(max-min)));
+  if(type==='temp')return'background:rgba('+(Math.round(55+r*180))+','+(Math.round(130-r*80))+','+(Math.round(221-r*190))+',0.18);';
+  if(type==='rain')return'background:rgba(74,158,221,'+(0.08+r*0.35)+');';
+  if(type==='wind')return'background:rgba(29,158,117,'+(0.08+r*0.35)+');';
+  if(type==='sun')return'background:rgba(245,197,24,'+(0.08+r*0.35)+');';
+  return'';
+}
+
+function makeChart(id,type,labels,datasets,opts){
+  opts=opts||{};
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id).getContext('2d');
+  const units={cTemp:'°C',cPluie:' mm',cVent:' km/h',cSoleil:'h'};
+  const scales={
+    x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:15},grid:{color:'rgba(0,0,0,0.03)'}},
+    y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},beginAtZero:opts.y0!==false}
+  };
+  if(opts.y2)scales.y2={position:'right',ticks:{color:'#1a3a6a',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true};
+  charts[id]=new Chart(ctx,{
+    type:type,
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:true,aspectRatio:1.6,animation:false,
+      plugins:{
+        legend:{display:datasets.length>1,labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}},
+        tooltip:{mode:'index',intersect:false,callbacks:{label:function(c){return c.dataset.label+': '+parseFloat(c.parsed.y).toFixed(1)+(units[id]||'');}}}
+      },
+      scales:scales
+    }
+  });
+}
+
+function drawWindRose(canvas, n_pct, s_pct, e_pct, o_pct){
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const maxR = Math.min(cx,cy)*0.7;
+  const dirs = [
+    {label:'N', pct:n_pct, angle:-Math.PI/2, color:'rgba(102,126,234,0.7)'},
+    {label:'E', pct:e_pct, angle:0,           color:'rgba(245,197,24,0.7)'},
+    {label:'S', pct:s_pct, angle:Math.PI/2,   color:'rgba(232,96,76,0.7)'},
+    {label:'O', pct:o_pct, angle:Math.PI,     color:'rgba(29,158,117,0.7)'}
+  ];
+  const max = Math.max(n_pct,s_pct,e_pct,o_pct)||1;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Cercles de référence
+  [0.25,0.5,0.75,1].forEach(function(f){
+    ctx.beginPath();
+    ctx.arc(cx,cy,maxR*f,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,0,0,0.07)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  });
+  // Axes
+  ['N','S','E','O'].forEach(function(_,i){
+    const a = i*Math.PI/2 - Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(a)*maxR,cy+Math.sin(a)*maxR);
+    ctx.strokeStyle='rgba(0,0,0,0.1)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  });
+  // Pétales
+  dirs.forEach(function(d){
+    const r = maxR*(d.pct/max);
+    const spread = Math.PI/6;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,d.angle-spread,d.angle+spread);
+    ctx.closePath();
+    ctx.fillStyle=d.color;
+    ctx.fill();
+    // Label
+    const lr = maxR+16;
+    const lx = cx+Math.cos(d.angle)*lr;
+    const ly = cy+Math.sin(d.angle)*lr;
+    ctx.fillStyle='#555';
+    ctx.font='bold 11px sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(d.label+' '+d.pct+'%',lx,ly);
+  });
+}
+
+function getSelectedMonth(){
+  return document.getElementById('monthPicker').value;
+}
+
+async function loadData(){
+  const m = getSelectedMonth();
+  if(!m)return;
+  document.getElementById('content').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
+  const [year,month] = m.split('-');
+  const dateLabel = new Date(parseInt(year),parseInt(month)-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  document.getElementById('top-sub').textContent=dateLabel.charAt(0).toUpperCase()+dateLabel.slice(1);
+  const W = "WHERE FORMAT_DATE('%Y-%m', DATE(obsTimeLocal)) = '"+m+"'";
+
+  // ---- KPI mensuel ----
+  const qKpi = `SELECT
+    MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
+    MAX(tempHigh)-MIN(tempLow) AS amplitude,
+    SUM(somme) AS pluie_total, MAX(precipRate) AS intensite_max,
+    AVG(windspeedAvg) AS vent_moy,
+    MAX(windgustHigh) AS rafale_max,
+    SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_total
+  FROM \`meteo_cintre.data_5_min\` ${W}`;
+
+  // ---- Extremes dates ----
+  const qEx = `SELECT
+    FORMAT_DATE('%d/%m/%Y', DATE(t_max.obsTimeLocal)) AS date_temp_max,
+    FORMAT_DATE('%d/%m/%Y', DATE(t_min.obsTimeLocal)) AS date_temp_min,
+    FORMAT_DATE('%d/%m/%Y', DATE(p_max.obsTimeLocal)) AS date_intensite_max,
+    FORMAT_DATE('%d/%m/%Y', DATE(v_max.obsTimeLocal)) AS date_rafale_max,
+    FORMAT_DATE('%d/%m/%Y', DATE(vm_max.obsTimeLocal)) AS date_vent_moy_max
+  FROM
+    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY tempHigh DESC LIMIT 1) t_max,
+    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY tempLow ASC LIMIT 1) t_min,
+    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY precipRate DESC LIMIT 1) p_max,
+    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY windgustHigh DESC LIMIT 1) v_max,
+    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY windspeedAvg DESC LIMIT 1) vm_max`;
+
+  // ---- Agrégats journaliers ----
+  const qDaily = `SELECT
+    DATE(obsTimeLocal) AS jour,
+    MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
+    SUM(somme) AS pluie, MAX(precipRate) AS intensite_max,
+    AVG(windspeedAvg) AS vent_moy, MAX(windgustHigh) AS rafale_max,
+    SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h
+  FROM \`meteo_cintre.data_5_min\` ${W}
+  GROUP BY jour ORDER BY jour ASC`;
+
+  // ---- Comptages seuils ----
+  const qSeuils = `SELECT
+    COUNTIF(t_min < 0) AS nb_gel,
+    COUNTIF(t_max >= 20) AS nb_sup20,
+    COUNTIF(t_max >= 25) AS nb_sup25,
+    COUNTIF(t_max >= 30) AS nb_sup30,
+    COUNTIF(t_max >= 35) AS nb_sup35,
+    COUNTIF(pluie >= 1) AS nb_pluie1,
+    COUNTIF(pluie >= 10) AS nb_pluie10
+  FROM (
+    SELECT DATE(obsTimeLocal) AS jour,
+      MIN(tempLow) AS t_min, MAX(tempHigh) AS t_max, SUM(somme) AS pluie
+    FROM \`meteo_cintre.data_5_min\` ${W}
+    GROUP BY jour
+  )`;
+
+  // ---- Répartition vent ----
+  const qVent = `SELECT
+    ROUND(COUNTIF(winddirAvg>=315 OR winddirAvg<45)*100.0/COUNT(*),0) AS pct_n,
+    ROUND(COUNTIF(winddirAvg>=135 AND winddirAvg<225)*100.0/COUNT(*),0) AS pct_s,
+    ROUND(COUNTIF(winddirAvg>=45 AND winddirAvg<135)*100.0/COUNT(*),0) AS pct_e,
+    ROUND(COUNTIF(winddirAvg>=225 AND winddirAvg<315)*100.0/COUNT(*),0) AS pct_o
+  FROM \`meteo_cintre.data_5_min\` ${W} WHERE winddirAvg IS NOT NULL`;
+
+  // ---- Jour avec vent moy max ----
+  const qVentMax = `SELECT DATE(obsTimeLocal) AS jour, AVG(windspeedAvg) AS vent_moy_jour
+  FROM \`meteo_cintre.data_5_min\` ${W}
+  GROUP BY jour ORDER BY vent_moy_jour DESC LIMIT 1`;
+
+  try{
+    const token = await getToken();
+    const [kpiRes,exRes,dailyRes,seuilsRes,ventRes,ventMaxRes] = await Promise.all([
+      queryBQ(token,qKpi), queryBQ(token,qEx), queryBQ(token,qDaily),
+      queryBQ(token,qSeuils), queryBQ(token,qVent), queryBQ(token,qVentMax)
+    ]);
+
+    const k = parseRows(kpiRes)[0]||{};
+    const ex = parseRows(exRes)[0]||{};
+    const days = parseRows(dailyRes);
+    const s = parseRows(seuilsRes)[0]||{};
+    const v = parseRows(ventRes)[0]||{};
+    const vm = parseRows(ventMaxRes)[0]||{};
+
+    if(!days.length){
+      document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
+      return;
+    }
+
+    const nbJours = days.length;
+    const ensMoyParJour = n(k.ens_total)!==null ? n(k.ens_total)/nbJours : null;
+    const ensHH = Math.floor(ensMoyParJour||0);
+    const ensMM = Math.round(((ensMoyParJour||0)-ensHH)*60);
+    const ensMoyStr = ensHH>0?ensHH+'h'+pad(ensMM):ensMM+'min';
+
+    const labels = days.map(function(r){return fmtDate(r.jour);});
+
+    // Cumul pluie progressif
+    let cumul=0;
+    const pluieCumul = days.map(function(r){cumul+=n(r.pluie)||0;return parseFloat(cumul.toFixed(2));});
+
+    // Min/max pour heatColor tableau
+    function mm(arr){const f=arr.filter(function(v){return isFinite(v);});return f.length?[Math.min.apply(null,f),Math.max.apply(null,f)]:[0,0];}
+    const [tmxMn,tmxMx]=mm(days.map(function(r){return n(r.temp_max);}));
+    const [tmnMn,tmnMx]=mm(days.map(function(r){return n(r.temp_min);}));
+    const [tmyMn,tmyMx]=mm(days.map(function(r){return n(r.temp_moy);}));
+    const [plMn,plMx]=mm(days.map(function(r){return n(r.pluie);}));
+    const [inMn,inMx]=mm(days.map(function(r){return n(r.intensite_max);}));
+    const [vmMn,vmMx]=mm(days.map(function(r){return n(r.vent_moy);}));
+    const [vxMn,vxMx]=mm(days.map(function(r){return n(r.rafale_max);}));
+    const [snMn,snMx]=mm(days.map(function(r){return n(r.ens_h);}));
+
+    const tableRows = days.map(function(r){
+      return '<tr>'
+        +'<td>'+fmtDate(r.jour)+'</td>'
+        +'<td style="'+heatColor(n(r.temp_min),tmnMn,tmnMx,'temp')+'">'+fmt(n(r.temp_min))+'°</td>'
+        +'<td style="'+heatColor(n(r.temp_max),tmxMn,tmxMx,'temp')+'">'+fmt(n(r.temp_max))+'°</td>'
+        +'<td style="'+heatColor(n(r.temp_moy),tmyMn,tmyMx,'temp')+'">'+fmt(n(r.temp_moy))+'°</td>'
+        +'<td style="'+heatColor(n(r.pluie),plMn,plMx,'rain')+'">'+fmt(n(r.pluie))+' mm</td>'
+        +'<td style="'+heatColor(n(r.intensite_max),inMn,inMx,'rain')+'">'+(n(r.intensite_max)>0?fmt(n(r.intensite_max))+' mm/h':'—')+'</td>'
+        +'<td style="'+heatColor(n(r.vent_moy),vmMn,vmMx,'wind')+'">'+fmt(n(r.vent_moy))+' km/h</td>'
+        +'<td style="'+heatColor(n(r.rafale_max),vxMn,vxMx,'wind')+'">'+fmt(n(r.rafale_max))+' km/h</td>'
+        +'<td style="'+heatColor(n(r.ens_h),snMn,snMx,'sun')+'">'+(n(r.ens_h)>0?fmt(n(r.ens_h))+'h':'—')+'</td>'
+        +'</tr>';
+    }).join('');
+
+    document.getElementById('content').innerHTML =
+      // ---- TEMPÉRATURE ----
+      '<div class="section-header">🌡️ Température</div>'
+      +'<div class="kpi-grid">'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon red">🥵</div><div class="kpi-card-title">Max absolue</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.temp_max))+'<span class="kpi-card-unit">°C</span></div>'
+          +'<div class="kpi-sub-single"><b>'+( ex.date_temp_max||'—')+'</b></div>'
+        +'</div>'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon blue">🥶</div><div class="kpi-card-title">Min absolue</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.temp_min))+'<span class="kpi-card-unit">°C</span></div>'
+          +'<div class="kpi-sub-single"><b>'+(ex.date_temp_min||'—')+'</b></div>'
+        +'</div>'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon purple">📊</div><div class="kpi-card-title">Moyenne du mois</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.temp_moy))+'<span class="kpi-card-unit">°C</span></div>'
+          +'<div class="kpi-sub-single">Amplitude <b>'+fmt(n(k.amplitude))+'°C</b></div>'
+        +'</div>'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon amber">🌡️</div><div class="kpi-card-title">Seuils journaliers</div></div>'
+          +'<div class="kpi-sub-grid-4" style="margin-top:4px;">'
+            +'<div class="kpi-sub-item"><b>'+( s.nb_gel||0)+'j</b><span>Gel</span></div>'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_sup20||0)+'j</b><span>≥20°</span></div>'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_sup25||0)+'j</b><span>≥25°</span></div>'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_sup30||0)+'j</b><span>≥30°</span></div>'
+          +'</div>'
+          +'<div class="kpi-sub-single" style="margin-top:6px;">Jours ≥35° : <b>'+(s.nb_sup35||0)+'</b></div>'
+        +'</div>'
+      +'</div>'
+      // ---- PLUIE ----
+      +'<div class="section-header">🌧️ Précipitations</div>'
+      +'<div class="kpi-grid">'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon blue">💧</div><div class="kpi-card-title">Total mensuel</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.pluie_total),1)+'<span class="kpi-card-unit"> mm</span></div>'
+          +'<div class="kpi-sub-grid">'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_pluie1||0)+' j</b><span>≥ 1 mm</span></div>'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_pluie10||0)+' j</b><span>≥ 10 mm</span></div>'
+          +'</div>'
+        +'</div>'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon teal">⚡</div><div class="kpi-card-title">Intensité max</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.intensite_max),1)+'<span class="kpi-card-unit"> mm/h</span></div>'
+          +'<div class="kpi-sub-single"><b>'+(ex.date_intensite_max||'—')+'</b></div>'
+        +'</div>'
+      +'</div>'
+      // ---- VENT ----
+      +'<div class="section-header">💨 Vent</div>'
+      +'<div class="kpi-grid">'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent moyen</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.vent_moy),1)+'<span class="kpi-card-unit"> km/h</span></div>'
+          +'<div class="kpi-sub-single">Jour le plus venteux<br><b>'+(vm.jour?fmtDateFull(vm.jour)+' — '+fmt(n(vm.vent_moy_jour),1)+' km/h':'—')+'</b></div>'
+        +'</div>'
+        +'<div class="kpi-card">'
+          +'<div class="kpi-card-header"><div class="kpi-icon amber">🌪️</div><div class="kpi-card-title">Rafale max</div></div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.rafale_max),1)+'<span class="kpi-card-unit"> km/h</span></div>'
+          +'<div class="kpi-sub-single"><b>'+(ex.date_rafale_max||'—')+'</b></div>'
+        +'</div>'
+        +'<div class="kpi-card full">'
+          +'<div class="kpi-card-header"><div class="kpi-icon purple">🧭</div><div class="kpi-card-title">Répartition des vents</div></div>'
+          +'<div class="wind-rose-wrap"><canvas id="windRose" width="200" height="200"></canvas></div>'
+        +'</div>'
+      +'</div>'
+      // ---- ENSOLEILLEMENT ----
+      +'<div class="section-header">☀️ Ensoleillement</div>'
+      +'<div class="kpi-grid">'
+        +'<div class="kpi-card full">'
+          +'<div class="kpi-card-header"><div class="kpi-icon amber">☀️</div><div class="kpi-card-title">Ensoleillement moyen par jour</div></div>'
+          +'<div class="kpi-card-value">'+ensMoyStr+'<span class="kpi-card-unit">/jour</span></div>'
+          +'<div class="kpi-sub-single">Total mensuel : <b>'+fmt(n(k.ens_total),1)+' h</b></div>'
+        +'</div>'
+      +'</div>'
+      // ---- GRAPHIQUES ----
+      +'<div class="section-header">Graphiques</div>'
+      +'<div class="chart-card"><div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div><canvas id="cTemp"></canvas></div>'
+      +'<div class="chart-card"><div class="chart-card-title"><span>🌧️ Précipitations</span><em>mm</em></div><canvas id="cPluie"></canvas></div>'
+      +'<div class="chart-card"><div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div><canvas id="cVent"></canvas></div>'
+      +'<div class="chart-card"><div class="chart-card-title"><span>☀️ Ensoleillement</span><em>h/jour</em></div><canvas id="cSoleil"></canvas></div>'
+      // ---- TABLEAU ----
+      +'<div class="section-header">Tableau journalier</div>'
+      +'<div class="table-section">'
+        +'<div class="table-card"><div class="table-wrap">'
+          +'<table><thead><tr>'
+            +'<th>Jour</th><th>T°Min</th><th>T°Max</th><th>T°Moy</th>'
+            +'<th>Pluie</th><th>Intens.</th><th>Vent</th><th>Rafale</th><th>Soleil</th>'
+          +'</tr></thead>'
+          +'<tbody>'+tableRows+'</tbody></table>'
+        +'</div></div>'
+      +'</div>'
+      +'<div class="pb"></div>';
+
+    // Rose des vents
+    drawWindRose(
+      document.getElementById('windRose'),
+      parseInt(v.pct_n)||0, parseInt(v.pct_s)||0,
+      parseInt(v.pct_e)||0, parseInt(v.pct_o)||0
+    );
+
+    // Graphique température
+    makeChart('cTemp','line',labels,[
+      {label:'Min',data:days.map(function(r){return n(r.temp_min);}),borderColor:'#4a9edd',backgroundColor:'rgba(74,158,221,0.06)',fill:false,tension:0.3,pointRadius:2,borderWidth:2},
+      {label:'Max',data:days.map(function(r){return n(r.temp_max);}),borderColor:'#e8604c',backgroundColor:'transparent',fill:false,tension:0.3,pointRadius:2,borderWidth:2},
+      {label:'Moy',data:days.map(function(r){return n(r.temp_moy);}),borderColor:'#bbb',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[4,3]}
+    ],{y0:false});
+
+    // Graphique pluie
+    makeChart('cPluie','bar',labels,[
+      {label:'Précip. (mm)',data:days.map(function(r){return n(r.pluie);}),backgroundColor:'rgba(74,158,221,0.7)',borderRadius:2,yAxisID:'y'},
+      {label:'Intensité max (mm/h)',data:days.map(function(r){return n(r.intensite_max);}),backgroundColor:'rgba(232,96,76,0.5)',borderRadius:2,yAxisID:'y'},
+      {label:'Cumul (mm)',data:pluieCumul,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2,yAxisID:'y2'}
+    ],{y0:true,y2:true});
+
+    // Graphique vent
+    makeChart('cVent','line',labels,[
+      {label:'Moy',data:days.map(function(r){return n(r.vent_moy);}),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2,borderWidth:2},
+      {label:'Rafale max',data:days.map(function(r){return n(r.rafale_max);}),borderColor:'#ccc',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[3,3]}
+    ],{y0:true});
+
+    // Graphique ensoleillement
+    makeChart('cSoleil','bar',labels,[
+      {label:'Ensoleillement (h)',data:days.map(function(r){return n(r.ens_h);}),backgroundColor:'rgba(245,197,24,0.6)',borderRadius:2}
+    ],{y0:true});
+
+  }catch(e){
+    document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
+  }
+}
+
+// Init : mois précédent
+(function(){
+  const dp = document.getElementById('monthPicker');
+  const d = new Date();
+  d.setMonth(d.getMonth()-1);
+  dp.value = d.getFullYear()+'-'+pad(d.getMonth()+1);
+})();
+
+loadData();
+</script>
+</body>
+</html>
