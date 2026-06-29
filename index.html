@@ -157,6 +157,9 @@ function heatColor(val, min, max, type='default') {
   if(type==='wind') {
     return `background:rgba(29,158,117,${0.08 + ratio*0.35});`;
   }
+  if(type==='humidity') {
+    return `background:rgba(100,180,255,${0.08 + ratio*0.35});`;
+  }
   return `background:rgba(100,100,200,${0.08 + ratio*0.3});`;
 }
 
@@ -196,9 +199,24 @@ function makeChart(id, type, labels, datasets, opts={}) {
   });
 }
 
+function windDirLabel(deg) {
+  if(deg===null||deg===undefined||deg==='') return '—';
+  const d = parseFloat(deg);
+  if(isNaN(d)) return '—';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+  return dirs[Math.round(d/22.5)%16];
+}
+
 function showModal(heure) {
   const rows = rawRows.filter(r => r.heure.startsWith(heure));
   if(!rows.length) return;
+
+  const mm = (arr, key) => { const v=arr.map(r=>n(r[key])).filter(x=>x!==null); return v.length?[Math.min(...v),Math.max(...v)]:[0,0]; };
+  const [thMn,thMx]=mm(rows,'tempHigh'); const [tlMn,tlMx]=mm(rows,'tempLow'); const [taMn,taMx]=mm(rows,'tempAvg');
+  const [plMn,plMx]=mm(rows,'pluie'); const [prMn,prMx]=mm(rows,'pluie_rate');
+  const [vMn,vMx]=mm(rows,'vent'); const [rMn,rMx]=mm(rows,'rafale');
+  const [hMn,hMx]=mm(rows,'humidite');
+
   const html = `
     <div class="modal-overlay" onclick="closeModal(event)">
       <div class="modal">
@@ -218,18 +236,22 @@ function showModal(heure) {
                 <th>Intensité</th>
                 <th>Vent</th>
                 <th>Rafale</th>
+                <th>Dir.</th>
+                <th>Humidité</th>
               </tr>
             </thead>
             <tbody>
               ${rows.map(r=>`<tr>
                 <td>${r.heure}</td>
-                <td>${fmt(n(r.tempHigh))}°</td>
-                <td>${fmt(n(r.tempLow))}°</td>
-                <td>${fmt(n(r.tempAvg))}°</td>
-                <td>${fmt(n(r.pluie))} mm</td>
-                <td>${fmt(n(r.pluie_rate))} mm/h</td>
-                <td>${fmt(n(r.vent))} km/h</td>
-                <td>${fmt(n(r.rafale))} km/h</td>
+                <td style="${heatColor(n(r.tempHigh),thMn,thMx,'temp')}">${fmt(n(r.tempHigh))}°</td>
+                <td style="${heatColor(n(r.tempLow),tlMn,tlMx,'temp')}">${fmt(n(r.tempLow))}°</td>
+                <td style="${heatColor(n(r.tempAvg),taMn,taMx,'temp')}">${fmt(n(r.tempAvg))}°</td>
+                <td style="${heatColor(n(r.pluie),plMn,plMx,'rain')}">${fmt(n(r.pluie))} mm</td>
+                <td style="${heatColor(n(r.pluie_rate),prMn,prMx,'rain')}">${n(r.pluie_rate)>0?fmt(n(r.pluie_rate))+' mm/h':'—'}</td>
+                <td style="${heatColor(n(r.vent),vMn,vMx,'wind')}">${fmt(n(r.vent))} km/h</td>
+                <td style="${heatColor(n(r.rafale),rMn,rMx,'wind')}">${fmt(n(r.rafale))} km/h</td>
+                <td>${windDirLabel(r.dir_vent)}</td>
+                <td style="${heatColor(n(r.humidite),hMn,hMx,'humidity')}">${fmt(n(r.humidite),0)}%</td>
               </tr>`).join('')}
             </tbody>
           </table>
@@ -246,7 +268,6 @@ function closeModal(e) {
 }
 
 function buildHourlyTable(rows) {
-  // Grouper par heure
   const byHour = {};
   rows.forEach(r => {
     const h = r.heure.substring(0,2);
@@ -257,6 +278,8 @@ function buildHourlyTable(rows) {
   const hours = Object.keys(byHour).sort();
   const agg = hours.map(h => {
     const rr = byHour[h];
+    // Direction dominante : dernière valeur de l'heure
+    const lastDir = rr[rr.length-1].dir_vent;
     return {
       heure: h+'h',
       temp_max: Math.max(...rr.map(r=>n(r.tempHigh)).filter(v=>v!==null)),
@@ -265,27 +288,22 @@ function buildHourlyTable(rows) {
       pluie: rr.reduce((s,r)=>s+(n(r.pluie)||0),0),
       intensite_max: Math.max(...rr.map(r=>n(r.pluie_rate)).filter(v=>v!==null)),
       vent_moy: rr.reduce((s,r)=>s+(n(r.vent)||0),0)/rr.length,
-      vent_max: Math.max(...rr.map(r=>n(r.rafale)).filter(v=>v!==null))
+      vent_max: Math.max(...rr.map(r=>n(r.rafale)).filter(v=>v!==null)),
+      dir_vent: lastDir,
+      humidite_moy: rr.reduce((s,r)=>s+(n(r.humidite)||0),0)/rr.length
     };
   });
 
-  // Calcul min/max pour échelle couleur
-  const allTmax = agg.map(r=>r.temp_max).filter(v=>isFinite(v));
-  const allTmin = agg.map(r=>r.temp_min).filter(v=>isFinite(v));
-  const allTmoy = agg.map(r=>r.temp_moy).filter(v=>isFinite(v));
-  const allPluie = agg.map(r=>r.pluie).filter(v=>isFinite(v));
-  const allIntens = agg.map(r=>r.intensite_max).filter(v=>isFinite(v)&&v>0);
-  const allVmoy = agg.map(r=>r.vent_moy).filter(v=>isFinite(v));
-  const allVmax = agg.map(r=>r.vent_max).filter(v=>isFinite(v));
-
-  const minmax = arr => [Math.min(...arr), Math.max(...arr)];
-  const [tmxMn,tmxMx] = minmax(allTmax);
-  const [tmnMn,tmnMx] = minmax(allTmin);
-  const [tmyMn,tmyMx] = minmax(allTmoy);
-  const [plMn,plMx] = minmax(allPluie);
-  const [inMn,inMx] = minmax(allIntens.length?allIntens:[0,0]);
-  const [vmMn,vmMx] = minmax(allVmoy);
-  const [vxMn,vxMx] = minmax(allVmax);
+  const minmax = arr => { const f=arr.filter(v=>isFinite(v)); return f.length?[Math.min(...f),Math.max(...f)]:[0,0]; };
+  const [tmxMn,tmxMx] = minmax(agg.map(r=>r.temp_max));
+  const [tmnMn,tmnMx] = minmax(agg.map(r=>r.temp_min));
+  const [tmyMn,tmyMx] = minmax(agg.map(r=>r.temp_moy));
+  const [plMn,plMx]   = minmax(agg.map(r=>r.pluie));
+  const allIntens      = agg.map(r=>r.intensite_max).filter(v=>isFinite(v)&&v>0);
+  const [inMn,inMx]   = allIntens.length?[Math.min(...allIntens),Math.max(...allIntens)]:[0,0];
+  const [vmMn,vmMx]   = minmax(agg.map(r=>r.vent_moy));
+  const [vxMn,vxMx]   = minmax(agg.map(r=>r.vent_max));
+  const [hmMn,hmMx]   = minmax(agg.map(r=>r.humidite_moy));
 
   const rows_html = agg.map(r => {
     const h = r.heure.replace('h','');
@@ -298,6 +316,8 @@ function buildHourlyTable(rows) {
       <td style="${heatColor(r.intensite_max,inMn,inMx,'rain')}">${isFinite(r.intensite_max)&&r.intensite_max>0?fmt(r.intensite_max)+' mm/h':'—'}</td>
       <td style="${heatColor(r.vent_moy,vmMn,vmMx,'wind')}">${fmt(r.vent_moy)}</td>
       <td style="${heatColor(r.vent_max,vxMn,vxMx,'wind')}">${isFinite(r.vent_max)?fmt(r.vent_max):'—'}</td>
+      <td>${windDirLabel(r.dir_vent)}</td>
+      <td style="${heatColor(r.humidite_moy,hmMn,hmMx,'humidity')}">${fmt(r.humidite_moy,0)}%</td>
     </tr>`;
   }).join('');
 
@@ -317,6 +337,8 @@ function buildHourlyTable(rows) {
                 <th>Intens.</th>
                 <th>Vent</th>
                 <th>Rafale</th>
+                <th>Dir.</th>
+                <th>Humidité</th>
               </tr>
             </thead>
             <tbody>${rows_html}</tbody>
@@ -343,7 +365,8 @@ async function loadData() {
       `),
       queryBQ(token, `
         SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel,
-               humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle,
+               humidityAvg AS hum_actuelle, humidityHigh AS hum_high_actuelle, humidityLow AS hum_low_actuelle,
+               pressureMax AS pression_actuelle,
                solarRadiationHigh AS soleil_actuel,
                FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure
         FROM \`meteo_cintre.data_5_min_today\`
@@ -371,7 +394,7 @@ async function loadData() {
           tempHigh, tempLow,
           AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul,
           somme AS pluie, precipRate AS pluie_rate,
-          windspeedAvg AS vent, windgustHigh AS rafale,
+          windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent,
           humidityAvg AS humidite, solarRadiationHigh AS soleil,
           tempAvg
         FROM \`meteo_cintre.data_5_min_today\`
@@ -456,10 +479,11 @@ async function loadData() {
         </div>
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon pink">💦</div><div class="kpi-card-title">Humidité</div></div>
-          <div class="kpi-card-value">${fmt(k.humidite_moy,0)}<span class="kpi-card-unit">%</span></div>
+          <div class="kpi-card-value">${fmt(n(last.hum_actuelle),0)}<span class="kpi-card-unit">%</span></div>
           <div class="kpi-sub-grid">
             <div class="kpi-sub-item"><b>↑ ${fmt(k.humidite_max,0)}%</b><span>${ex.heure_hum_max||'—'}</span></div>
             <div class="kpi-sub-item"><b>↓ ${fmt(k.humidite_min,0)}%</b><span>${ex.heure_hum_min||'—'}</span></div>
+            <div class="kpi-sub-item"><b>Moy ${fmt(k.humidite_moy,0)}%</b><span>journée</span></div>
           </div>
         </div>
         <div class="kpi-card full">
