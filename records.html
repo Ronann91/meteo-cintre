@@ -54,13 +54,7 @@ nav a.active { color: #e8604c; font-weight: 600; }
 .tab-btn.active { color: #e8604c; border-bottom-color: #e8604c; }
 .tab-section { display: none; }
 .tab-section.active { display: block; }
-.tab-bar { display: flex; gap: 0; padding: 12px 16px 0; }
-.tab-btn { flex: 1; padding: 9px 0; font-size: 12px; font-weight: 600; border: 1.5px solid #e0e0e0; background: white; color: #aaa; cursor: pointer; transition: all 0.15s; }
-.tab-btn:first-child { border-radius: 12px 0 0 12px; }
-.tab-btn:last-child { border-radius: 0 12px 12px 0; border-left: none; }
-.tab-btn.active { background: #e8604c; border-color: #e8604c; color: white; }
-.tab-section { display: none; }
-.tab-section.active { display: block; }
+
 </style>
 </head>
 <body>
@@ -76,10 +70,12 @@ nav a.active { color: #e8604c; font-weight: 600; }
 </div>
 <div class="month-filter" id="monthFilter"></div>
 <div class="tab-bar">
-  <button class="tab-btn active" onclick="selectTab('temp')">🌡️ Températures</button>
-  <button class="tab-btn" onclick="selectTab('precip')">🌧️ Précipitations</button>
+  <button class="tab-btn active" data-tab="temp" onclick="selectTab('temp')">🌡️ Températures</button>
+  <button class="tab-btn" data-tab="precip" onclick="selectTab('precip')">🌧️ Précipitations</button>
 </div>
-<div id="content"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
+<div class="tab-section active" data-tab="temp" id="tab-temp"></div>
+<div class="tab-section" data-tab="precip" id="tab-precip"></div>
+<div id="content-loading"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
 <nav>
   <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
   <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
@@ -203,7 +199,9 @@ function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra,showT
 }
 
 async function loadData(){
-  document.getElementById('content').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
+  document.getElementById('content-loading').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
+  document.getElementById('tab-temp').innerHTML='';
+  document.getElementById('tab-precip').innerHTML='';
   document.getElementById('top-sub').textContent=selectedMonth===0?'Tous les mois':'Mois de '+MOIS[selectedMonth];
   const WT = monthWhereT();   // température : sans filtre precipRate
   const WP = monthWhereP();   // précipitations : avec precipRate < 150
@@ -217,7 +215,7 @@ async function loadData(){
   const qPrecipJour="SELECT DATE(obsTimeLocal) AS jour,SUM(somme) AS total FROM `meteo_cintre.data_5_min`"+WP+" GROUP BY jour ORDER BY total DESC LIMIT 10";
   const qPrecip5min="SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure,somme AS val FROM `meteo_cintre.data_5_min`"+WP+" ORDER BY somme DESC LIMIT 10";
   const qIntensiteMax="SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure,precipRate AS val FROM `meteo_cintre.data_5_min`"+WP+" ORDER BY precipRate DESC LIMIT 10";
-  const qPrecip1h="SELECT jour,heure_debut,cumul_1h FROM (SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure_debut,SUM(somme) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS cumul_1h FROM `meteo_cintre.data_5_min`"+WP+") ORDER BY cumul_1h DESC LIMIT 10";
+  const qPrecip1h="SELECT jour,heure_debut,cumul_1h,ts FROM (SELECT DATE(obsTimeLocal) AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeLocal) AS heure_debut,UNIX_SECONDS(obsTimeLocal) AS ts,SUM(somme) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS cumul_1h FROM `meteo_cintre.data_5_min`"+WP+") ORDER BY cumul_1h DESC LIMIT 100";
   const qMoisPluvieux="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeLocal)) AS mois,SUM(somme) AS total FROM `meteo_cintre.data_5_min`"+WP+" GROUP BY mois ORDER BY total DESC LIMIT 10";
   const qMoisSec="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeLocal)) AS mois,SUM(somme) AS total FROM `meteo_cintre.data_5_min`"+WP+" GROUP BY mois ORDER BY total ASC LIMIT 10";
 
@@ -241,7 +239,7 @@ async function loadData(){
     const moisSec=parseRows(resMSec);
 
     if(!days.length){
-      document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
+      document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
       return;
     }
 
@@ -264,7 +262,16 @@ async function loadData(){
     const t10PrecipJour=precipJour.map(function(r){return {val:n(r.total),label:fmtDate(r.jour)};});
     const t10Precip5min=precip5min.map(function(r){return {val:n(r.val),label:fmtDate(r.jour)+' à '+r.heure};});
     const t10Intensite=intensiteMax.map(function(r){return {val:n(r.val),label:fmtDate(r.jour)+' à '+r.heure};});
-    const t10Precip1h=precip1h.map(function(r){return {val:n(r.cumul_1h),label:fmtDate(r.jour)+' à '+r.heure_debut};});
+    // Filtrage non-chevauchant 1h : exclure toute fenêtre dont le timestamp est à moins de 3600s d'une fenêtre déjà retenue
+    const noOverlap1h = (function(){
+      const kept=[]; const gap=3600;
+      precip1h.forEach(function(r){
+        const ts=parseFloat(r.ts);
+        if(!kept.some(function(k){return Math.abs(parseFloat(k.ts)-ts)<gap;})) kept.push(r);
+      });
+      return kept.slice(0,10);
+    })();
+    const t10Precip1h=noOverlap1h.map(function(r){return {val:n(r.cumul_1h),label:fmtDate(r.jour)+' à '+r.heure_debut};});
     const t10MPluvieux=moisPluvieux.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
     const t10MSec=moisSec.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
 
@@ -312,16 +319,12 @@ async function loadData(){
       +recordCardPrecip('🏜️','amber','Mois le plus sec',p5?p5.val:null,'mm',p5?p5.label:'—',t10MSec,null)
       +'</div>';
 
-    document.getElementById('content').innerHTML=
-      '<div class="tab-bar">'
-      +'<button class="tab-btn'+(selectedTab==='temp'?' active':'')+'" data-tab="temp" onclick="selectTab(\'temp\')">🌡️ Températures</button>'
-      +'<button class="tab-btn'+(selectedTab==='precip'?' active':'')+'" data-tab="precip" onclick="selectTab(\'precip\')">🌧️ Précipitations</button>'
-      +'</div>'
-      +'<div class="tab-section'+(selectedTab==='temp'?' active':'')+'" data-tab="temp">'+htmlTemp+'<div class="pb"></div></div>'
-      +'<div class="tab-section'+(selectedTab==='precip'?' active':'')+'" data-tab="precip">'+htmlPrecip+'<div class="pb"></div></div>';
+    document.getElementById('content-loading').innerHTML='';
+    document.getElementById('tab-temp').innerHTML=htmlTemp+'<div class="pb"></div>';
+    document.getElementById('tab-precip').innerHTML=htmlPrecip+'<div class="pb"></div>';
 
   }catch(e){
-    document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
+    document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
   }
 }
 buildMonthFilter();
