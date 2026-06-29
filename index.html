@@ -335,13 +335,14 @@ async function loadData() {
           MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
           SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max,
           MAX(windgustHigh) AS vent_rafale_max,
+          AVG(windspeedAvg) AS vent_moy_jour,
           AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min,
           MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min,
           SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h
         FROM \`meteo_cintre.data_5_min_today\`
       `),
       queryBQ(token, `
-        SELECT tempHigh AS temp_actuelle, windgustHigh AS vent_actuel,
+        SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel,
                humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle,
                solarRadiationHigh AS soleil_actuel,
                FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure
@@ -443,8 +444,9 @@ async function loadData() {
           <div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div>
           <div class="kpi-card-value">${fmt(n(last.vent_actuel),1)}<span class="kpi-card-unit"> km/h</span></div>
           <div class="kpi-sub-grid">
+            <div class="kpi-sub-item"><b>${fmt(k.vent_moy_jour,1)} km/h</b><span>Moy journée</span></div>
             <div class="kpi-sub-item"><b>${fmt(k.vent_rafale_max)} km/h</b><span>Rafale max (56s)</span></div>
-            <div class="kpi-sub-item"><b>${ex.heure_vent_max||'—'}</b><span>heure max</span></div>
+            <div class="kpi-sub-item"><b>${ex.heure_vent_max||'—'}</b><span>heure rafale max</span></div>
           </div>
         </div>
         <div class="kpi-card">
