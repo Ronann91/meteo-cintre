@@ -171,16 +171,6 @@ function buildMonthFilter(){
 
 function selectMonth(i){ selectedMonth=i; buildMonthFilter(); loadData(); }
 
-let selectedTab = 'temp';
-function selectTab(tab){
-  selectedTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(function(b,i){
-    b.classList.toggle('active', (i===0&&tab==='temp')||(i===1&&tab==='precip'));
-  });
-  document.querySelectorAll('.tab-section').forEach(function(s){
-    s.classList.toggle('active', s.dataset.tab===tab);
-  });
-}
 function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE(obsTimeLocal))='+selectedMonth; }
 function monthWhereT(){ return ' WHERE TRUE'+monthWhere(); }
 function monthWhereP(){ return ' WHERE TRUE AND precipRate < 150'+monthWhere(); }
