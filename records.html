@@ -114,6 +114,31 @@ function parseRows(res){
 function n(v){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v):null;}
 function fmt(v,d=1){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v).toFixed(d):'—';}
 function fmtDate(s){if(!s)return'—';const d=new Date(s.includes('T')?s:s+'T12:00:00');return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});}
+function fmtMonth(s){if(!s)return'—';const[y,m]=s.split('-');const mois=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];return mois[parseInt(m)-1]+' '+y;}
+function fmtDateTime(s){if(!s)return'—';const d=new Date(s);return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+
+function recordCardPrecip(icon,iconClass,title,value,unit,label,top10,extra){
+  const topRows = top10.map(function(r,i){
+    const rc = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+    return '<tr>'
+      +'<td class="'+rc+'">'+(i+1)+'</td>'
+      +'<td>'+fmt(n(r.val),1)+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span></td>'
+      +'<td>'+r.label+'</td>'
+      +'</tr>';
+  });
+  const firstRow = topRows[0]||'';
+  const restRows = topRows.slice(1).join('');
+  return '<div class="record-card">'
+    +'<div class="record-header"><div class="record-icon '+iconClass+'">'+icon+'</div><div class="record-title">'+title+'</div></div>'
+    +'<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;"><div class="record-value">'+fmt(n(value),1)+'</div><div class="record-unit">'+unit+'</div></div>'
+    +'<div class="record-date"><b>'+label+'</b></div>'
+    +(extra?'<div class="record-extra">'+extra+'</div>':'')
+    +'<details>'
+    +'<summary>Top 10 <span class="arr">▼</span></summary>'
+    +'<table class="top10-table"><tbody>'+firstRow+restRows+'</tbody></table>'
+    +'</details>'
+    +'</div>';
+}
 
 function buildMonthFilter(){
   document.getElementById('monthFilter').innerHTML=MOIS.map(function(m,i){
@@ -156,18 +181,44 @@ async function loadData(){
   document.getElementById('top-sub').textContent=selectedMonth===0?'Tous les mois':'Mois de '+MOIS[selectedMonth];
   const W=monthWhere();
 
+  // ---- Requêtes température (existantes) ----
   const qDaily="SELECT jour, temp_max, temp_min, temp_moy, amplitude, jour_min_max, jour_max_min FROM (SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, MAX(tempHigh)-MIN(tempLow) AS amplitude, MAX(tempHigh) AS jour_min_max, MIN(tempLow) AS jour_max_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour HAVING COUNT(*) >= 280) ORDER BY jour";
   const qDailyAll="SELECT DATE(obsTimeLocal) AS jour, MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour ORDER BY jour";
   const qTmaxH="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempHigh DESC LIMIT 10";
   const qTminH="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY tempLow ASC LIMIT 10";
 
+  // ---- Requêtes précipitations ----
+  // Précip max par journée (top 10)
+  const qPrecipJour="SELECT DATE(obsTimeLocal) AS jour, SUM(somme) AS total FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY jour ORDER BY total DESC LIMIT 10";
+  // Précip max 5min (top 10)
+  const qPrecip5min="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, somme AS val FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY somme DESC LIMIT 10";
+  // Intensité max precipRate (top 10)
+  const qIntensiteMax="SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, precipRate AS val FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" ORDER BY precipRate DESC LIMIT 10";
+  // Précip glissant 1h : SUM sur fenêtre 12 lignes (12x5min=60min)
+  const qPrecip1h="SELECT jour, heure_debut, cumul_1h FROM (SELECT DATE(obsTimeLocal) AS jour, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure_debut, SUM(somme) OVER (ORDER BY obsTimeLocal ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS cumul_1h FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+") ORDER BY cumul_1h DESC LIMIT 10";
+  // Mois les plus pluvieux (top 10)
+  const qMoisPluvieux="SELECT FORMAT_DATE('%Y-%m', DATE(obsTimeLocal)) AS mois, SUM(somme) AS total FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY mois ORDER BY total DESC LIMIT 10";
+  // Mois les plus secs (top 10)
+  const qMoisSec="SELECT FORMAT_DATE('%Y-%m', DATE(obsTimeLocal)) AS mois, SUM(somme) AS total FROM `meteo_cintre.data_5_min` WHERE TRUE"+W+" GROUP BY mois ORDER BY total ASC LIMIT 10";
+
   try{
     const token=await getToken();
-    const [res,resAll,resTmaxH,resTminH]=await Promise.all([queryBQ(token,qDaily),queryBQ(token,qDailyAll),queryBQ(token,qTmaxH),queryBQ(token,qTminH)]);
+    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resP1h,resMPluvieux,resMSec]=await Promise.all([
+      queryBQ(token,qDaily),queryBQ(token,qDailyAll),queryBQ(token,qTmaxH),queryBQ(token,qTminH),
+      queryBQ(token,qPrecipJour),queryBQ(token,qPrecip5min),queryBQ(token,qIntensiteMax),
+      queryBQ(token,qPrecip1h),queryBQ(token,qMoisPluvieux),queryBQ(token,qMoisSec)
+    ]);
+
     const days=parseRows(res);
     const daysAll=parseRows(resAll);
     const tmaxHeures=parseRows(resTmaxH);
     const tminHeures=parseRows(resTminH);
+    const precipJour=parseRows(resPJ);
+    const precip5min=parseRows(resP5);
+    const intensiteMax=parseRows(resInt);
+    const precip1h=parseRows(resP1h);
+    const moisPluvieux=parseRows(resMPluvieux);
+    const moisSec=parseRows(resMSec);
 
     if(!days.length){
       document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
@@ -193,6 +244,7 @@ async function loadData(){
         return {val:r[key],jour:r.jour,tmax:n(r.temp_max),tmin:n(r.temp_min),heure:null};
       });
     }
+
     const t10TempMax = top10ByArr(daysAll,'temp_max',false).map(function(r){
       const h=tmaxHeures.find(function(x){return x.jour===r.jour;});
       return Object.assign({},r,{heure:h?h.heure:null});
@@ -205,11 +257,21 @@ async function loadData(){
     const t10MoyLow   = top10By('temp_moy',true);
     const t10AmpHigh  = top10By('amplitude',false);
     const t10AmpLow   = top10By('amplitude',true);
-    const t10JMinMax  = top10By('jour_min_max',true);   // MIN(tempHigh) le plus petit = asc
-    const t10JMaxMin  = top10By('jour_max_min',false);  // MAX(tempLow) le plus grand = desc
+    const t10JMinMax  = top10By('jour_min_max',true);
+    const t10JMaxMin  = top10By('jour_max_min',false);
+
+    // Top10 précip formatés
+    const t10PrecipJour = precipJour.map(function(r){return {val:n(r.total),label:fmtDate(r.jour)};});
+    const t10Precip5min = precip5min.map(function(r){return {val:n(r.val),label:fmtDate(r.jour)+' à '+r.heure};});
+    const t10Intensite  = intensiteMax.map(function(r){return {val:n(r.val),label:fmtDate(r.jour)+' à '+r.heure};});
+    const t10Precip1h   = precip1h.map(function(r){return {val:n(r.cumul_1h),label:fmtDate(r.jour)+' à '+r.heure_debut};});
+    const t10MPluvieux  = moisPluvieux.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
+    const t10MSec       = moisSec.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
 
     const r0=t10TempMax[0], r1=t10TempMin[0], r2=t10MoyHigh[0], r3=t10MoyLow[0];
     const r4=t10AmpHigh[0], r5=t10AmpLow[0], r6=t10JMinMax[0], r7=t10JMaxMin[0];
+    const p0=t10PrecipJour[0], p1=t10Precip1h[0], p2=t10Precip5min[0], p3=t10Intensite[0];
+    const p4=t10MPluvieux[0], p5=t10MSec[0];
 
     const html=
       '<div class="section-title">🌡️ Températures extrêmes</div>'
@@ -232,6 +294,21 @@ async function loadData(){
       +recordCard('🌡️','amber','Température minimum la plus élevée',r7.val,'°C',r7.jour,null,t10JMaxMin,null,false)
       +recordCard('🌡️','purple','Température maximum la plus basse',r6.val,'°C',r6.jour,null,t10JMinMax,null,false)
       +'</div>'
+      +'<div class="section-title">🌧️ Précipitations — Cumuls</div>'
+      +'<div class="card-grid">'
+      +recordCardPrecip('📅','blue','Précip. max en 1 journée',p0?p0.val:null,'mm',p0?p0.label:'—',t10PrecipJour,null)
+      +recordCardPrecip('⏱️','teal','Précip. max sur 1h glissante',p1?p1.val:null,'mm',p1?p1.label:'—',t10Precip1h,null)
+      +'</div>'
+      +'<div class="section-title">🌧️ Précipitations — Intensité</div>'
+      +'<div class="card-grid">'
+      +recordCardPrecip('⚡','blue','Précip. max sur 5 min',p2?p2.val:null,'mm',p2?p2.label:'—',t10Precip5min,null)
+      +recordCardPrecip('💧','teal','Intensité max (mm/h)',p3?p3.val:null,'mm/h',p3?p3.label:'—',t10Intensite,null)
+      +'</div>'
+      +'<div class="section-title">📆 Bilan mensuel</div>'
+      +'<div class="card-grid">'
+      +recordCardPrecip('🌊','blue','Mois le plus pluvieux',p4?p4.val:null,'mm',p4?p4.label:'—',t10MPluvieux,null)
+      +recordCardPrecip('🏜️','amber','Mois le plus sec',p5?p5.val:null,'mm',p5?p5.label:'—',t10MSec,null)
+      +'</div>'
       +'<div class="pb"></div>';
 
     document.getElementById('content').innerHTML=html;
@@ -240,7 +317,6 @@ async function loadData(){
     document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
   }
 }
-
 buildMonthFilter();
 loadData();
 </script>
