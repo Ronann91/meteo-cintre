@@ -47,6 +47,17 @@ nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-t
 nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
 nav a.active { color: #11998e; font-weight: 600; }
 .pb { padding-bottom: 80px; }
+.month-picker { background: white; margin: 8px 16px 0; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.month-picker-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; user-select: none; }
+.month-picker-header span { font-size: 10px; color: #aaa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.month-picker-header em { font-size: 11px; color: #11998e; font-style: normal; font-weight: 600; }
+.month-picker-body { display: none; padding: 8px 14px 12px; border-top: 1px solid #f0f0f0; }
+.month-picker-body.open { display: flex; flex-wrap: wrap; gap: 6px; }
+.month-cb { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.month-cb input { accent-color: #11998e; width: 13px; height: 13px; cursor: pointer; }
+.month-cb span { font-size: 11px; font-weight: 600; color: #555; }
+.month-shortcuts { display: flex; gap: 6px; margin-bottom: 8px; width: 100%; }
+.month-shortcut { font-size: 10px; color: #11998e; cursor: pointer; background: #e6f9f3; border: none; border-radius: 8px; padding: 3px 8px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -66,6 +77,21 @@ nav a.active { color: #11998e; font-weight: 600; }
   <div class="year-picker-label">Années</div>
 </div>
 
+<div class="month-picker" id="monthPicker">
+  <div class="month-picker-header" onclick="toggleMonthPicker()">
+    <span>Mois</span>
+    <em id="monthPickerLabel">Tous les mois ▼</em>
+  </div>
+  <div class="month-picker-body" id="monthPickerBody">
+    <div class="month-shortcuts">
+      <button class="month-shortcut" onclick="selectAllMonths()">Tous</button>
+      <button class="month-shortcut" onclick="selectMonths([12,1,2])">Hiver</button>
+      <button class="month-shortcut" onclick="selectMonths([3,4,5])">Printemps</button>
+      <button class="month-shortcut" onclick="selectMonths([6,7,8])">Été</button>
+      <button class="month-shortcut" onclick="selectMonths([9,10,11])">Automne</button>
+    </div>
+  </div>
+</div>
 <div id="content"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
 
 <nav>
@@ -86,6 +112,59 @@ const SA = {
 let charts = {};
 let selectedYears = [];
 let allYears = [];
+let selectedMonths = [1,2,3,4,5,6,7,8,9,10,11,12];
+let cachedCumulRows = null;
+
+function toggleMonthPicker(){
+  const body = document.getElementById('monthPickerBody');
+  body.classList.toggle('open');
+}
+
+function buildMonthPickerBody(){
+  const body = document.getElementById('monthPickerBody');
+  const shortcuts = body.querySelector('.month-shortcuts');
+  // Supprimer les checkboxes existantes
+  Array.from(body.querySelectorAll('.month-cb')).forEach(function(el){el.remove();});
+  const MOIS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  MOIS_SHORT.forEach(function(m,i){
+    const mnum = i+1;
+    const checked = selectedMonths.indexOf(mnum)!==-1;
+    const lbl = document.createElement('label');
+    lbl.className = 'month-cb';
+    lbl.innerHTML = '<input type="checkbox" value="'+mnum+'"'+(checked?' checked':'')+' onchange="toggleMonth('+mnum+')">'
+      +'<span>'+m+'</span>';
+    body.appendChild(lbl);
+  });
+  updateMonthLabel();
+}
+
+function updateMonthLabel(){
+  const el = document.getElementById('monthPickerLabel');
+  const MOIS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  if(selectedMonths.length===12) el.textContent='Tous les mois ▼';
+  else el.textContent=selectedMonths.map(function(m){return MOIS_SHORT[m-1];}).join(', ')+' ▼';
+}
+
+function toggleMonth(m){
+  const idx = selectedMonths.indexOf(m);
+  if(idx===-1) selectedMonths.push(m);
+  else if(selectedMonths.length>1) selectedMonths.splice(idx,1);
+  selectedMonths.sort(function(a,b){return a-b;});
+  buildMonthPickerBody();
+  if(selectedYears.length>0) renderData();
+}
+
+function selectAllMonths(){
+  selectedMonths=[1,2,3,4,5,6,7,8,9,10,11,12];
+  buildMonthPickerBody();
+  if(selectedYears.length>0) renderData();
+}
+
+function selectMonths(arr){
+  selectedMonths=arr.slice().sort(function(a,b){return a-b;});
+  buildMonthPickerBody();
+  if(selectedYears.length>0) renderData();
+}
 
 function b64url(s){return btoa(unescape(encodeURIComponent(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
 function b64urlB(a){let s='';a.forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
@@ -163,6 +242,7 @@ async function initYears(){
   // Par défaut : toutes les années
   selectedYears = allYears.slice();
   buildYearPicker();
+  buildMonthPickerBody();
   loadData();
 }
 
@@ -231,13 +311,28 @@ async function loadData(){
         SUM(somme) AS daily_pluie,
         MAX(precipRate) AS daily_intensite
       FROM \`meteo_cintre.data_5_min\`
+      WHERE precipRate < 150
       GROUP BY jour
     )
     GROUP BY annee, mois
     ORDER BY annee, mois`;
 
-    const res = await queryBQ(cachedToken, sql);
+    // Requête cumul journalier (pour graphique cumul annuel) — pas de filtre mois, toute l'année
+    const sqlCumul = \`SELECT
+      EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee,
+      DATE(obsTimeLocal) AS jour,
+      SUM(somme) AS daily_pluie
+    FROM \`meteo_cintre.data_5_min\`
+    WHERE precipRate < 150
+    GROUP BY annee, jour
+    ORDER BY annee, jour\`;
+
+    const [res, resCumul] = await Promise.all([
+      queryBQ(cachedToken, sql),
+      queryBQ(cachedToken, sqlCumul)
+    ]);
     cachedRows = parseRows(res);
+    cachedCumulRows = parseRows(resCumul);
     renderData();
   }catch(e){
     document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
@@ -246,7 +341,7 @@ async function loadData(){
 
 function renderData(){
   if(!cachedRows) return;
-  const rows = cachedRows.filter(function(r){return selectedYears.indexOf(parseInt(r.annee))!==-1;});
+  const rows = cachedRows.filter(function(r){return selectedYears.indexOf(parseInt(r.annee))!==-1 && selectedMonths.indexOf(parseInt(r.mois))!==-1;});
   if(!rows.length){
     document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour les années sélectionnées.</div></div>';
     return;
@@ -264,7 +359,7 @@ function renderData(){
     byMois[m].push(r);
   });
 
-  const moisList = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const moisList = [1,2,3,4,5,6,7,8,9,10,11,12].filter(function(m){return selectedMonths.indexOf(m)!==-1;});
 
   function avgField(mois, key){
     const arr = byMois[mois]||[];
@@ -363,11 +458,60 @@ function renderData(){
       +'</tr>';
   }).join('');
 
+  // Graphique cumul : datasets par année
+  const maxYear = Math.max.apply(null, selectedYears);
+  const cumulDatasets = selectedYears.map(function(y, i){
+    const color = YEAR_COLORS[allYears.indexOf(y) % YEAR_COLORS.length];
+    const isCurrent = y === maxYear;
+    const dayRows = (cachedCumulRows||[]).filter(function(r){return parseInt(r.annee)===y;});
+    // Construire tableau 366 jours (index 0=01-01)
+    const dailyMap = {};
+    dayRows.forEach(function(r){
+      const d = new Date(r.jour+'T12:00:00');
+      const key = pad(d.getMonth()+1)+'-'+pad(d.getDate());
+      dailyMap[key] = n(r.daily_pluie)||0;
+    });
+    // Générer labels jan-déc et cumul
+    const data = []; let cumul = 0;
+    const isLeap = (y%4===0&&(y%100!==0||y%400===0));
+    const daysInMonth = [31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31];
+    for(let m=0;m<12;m++){
+      for(let d=1;d<=daysInMonth[m];d++){
+        const key = pad(m+1)+'-'+pad(d);
+        cumul += dailyMap[key]||0;
+        data.push(parseFloat(cumul.toFixed(1)));
+      }
+    }
+    return {
+      label: String(y),
+      data: data,
+      borderColor: isCurrent ? '#1a1a2e' : color,
+      backgroundColor: 'transparent',
+      borderWidth: isCurrent ? 3 : 1.2,
+      tension: 0.2,
+      pointRadius: 0,
+      borderDash: isCurrent ? [] : [4,3],
+      order: isCurrent ? 0 : 1
+    };
+  });
+  // Labels axe X : MM-DD tous les 14 jours
+  const cumulLabels = [];
+  const isLeapRef = true;
+  const daysInMonthRef = [31,29,31,30,31,30,31,31,30,31,30,31];
+  for(let m=0;m<12;m++){
+    for(let d=1;d<=daysInMonthRef[m];d++){
+      const show = (d===1||d===15);
+      cumulLabels.push(show?pad(m+1)+'-'+pad(d):'');
+    }
+  }
+
   document.getElementById('content').innerHTML =
     '<div class="section-header">🌡️ Températures — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cTemp"></canvas></div>'
     +'<div class="section-header">🌧️ Précipitations — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
+    +'<div class="section-header">📈 Cumul précipitations annuel</div>'
+    +'<div class="chart-card"><canvas id="cCumul"></canvas></div>'
     +'<div class="section-header">📋 Détail par mois</div>'
     +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
     +'<table><thead><tr>'
@@ -428,6 +572,28 @@ function renderData(){
         x:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'}},
         y:{stacked:true,ticks:{color:'#ccc',font:{size:9},stepSize:1},grid:{color:'rgba(0,0,0,0.03)'},beginAtZero:true,title:{display:true,text:'nb jours',color:'#ccc',font:{size:9}}},
         y2:{position:'right',ticks:{color:'#1a3a6a',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true,title:{display:true,text:'mm',color:'#1a3a6a',font:{size:9}}}
+      }
+    }
+  });
+  // Graphique cumul annuel
+  makeChart('cCumul',{
+    type:'line',
+    data:{labels:cumulLabels, datasets:cumulDatasets},
+    options:{
+      responsive:true,maintainAspectRatio:true,aspectRatio:1.5,animation:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',intersect:false,
+          callbacks:{
+            title:function(items){return items[0]?items[0].label:'';},
+            label:function(c){return c.dataset.label+': '+c.parsed.y.toFixed(0)+' mm';}
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#ccc',font:{size:8},maxRotation:0,callback:function(v,i){return cumulLabels[i]||'';}},grid:{color:'rgba(0,0,0,0.03)'}},
+        y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true,title:{display:true,text:'mm',color:'#ccc',font:{size:9}}}
       }
     }
   });
