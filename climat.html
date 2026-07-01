@@ -29,15 +29,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .table-section { padding: 0 16px 10px; }
 .table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 10px; }
 .table-title { font-size: 12px; font-weight: 700; color: #444; padding: 12px 14px 4px; }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 5px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
-thead th:first-child { text-align: left; padding-left: 12px; }
+.table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+thead th { position: sticky; top: 0; z-index: 3; background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 5px; text-align: center; border-bottom: 1px solid #e8e8e8; white-space: nowrap; }
+thead th:first-child { text-align: left; padding-left: 12px; position: sticky; top: 0; left: 0; z-index: 4; background: #f7f8fa; }
 tbody tr { border-bottom: 0.5px solid #f5f5f5; }
-tbody tr:hover { background: #f9fff9; }
+tbody tr:hover td { background: #f0fff8 !important; }
 tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 6px 5px; text-align: center; font-weight: 500; color: #333; white-space: nowrap; }
-tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #11998e; }
+tbody td { padding: 6px 5px; text-align: center; font-weight: 500; color: #333; white-space: nowrap; border-bottom: 0.5px solid #f5f5f5; }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #11998e; position: sticky; left: 0; z-index: 1; background: white; border-right: 1px solid #eee; }
 
 .loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
 .spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #11998e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
@@ -210,8 +210,8 @@ async function loadData(){
       -- Précipitations
       SUM(daily_pluie) AS pluie_total,
       MAX(daily_intensite) AS intensite_max,
-      COUNTIF(daily_pluie>=1) AS nb_j_pluie1,
-      COUNTIF(daily_pluie>=5) AS nb_j_pluie5,
+      COUNTIF(daily_pluie>=1 AND daily_pluie<5) AS nb_j_pluie1,
+      COUNTIF(daily_pluie>=5 AND daily_pluie<10) AS nb_j_pluie5,
       COUNTIF(daily_pluie>=10) AS nb_j_pluie10,
       -- Seuils température
       COUNTIF(daily_tmin<0) AS nb_gel,
@@ -312,7 +312,7 @@ function renderData(){
 
   // Tableau mensuel : ligne par (annee,mois) trié
   const tableRowsSorted = rows.slice().sort(function(a,b){
-    return parseInt(a.annee)*100+parseInt(a.mois) - (parseInt(b.annee)*100+parseInt(b.mois));
+    return (parseInt(b.annee)*100+parseInt(b.mois)) - (parseInt(a.annee)*100+parseInt(a.mois));
   });
 
   // min/max pour heatColor tableau
@@ -333,8 +333,14 @@ function renderData(){
   function fmtC(v,d){return fmt(v,d!==undefined?d:1);}
   function fmtI(v){const nv=n(v);return(nv!==null&&nv>0)?Math.round(nv):'—';}
 
-  const tableRowsTempHTML = tableRowsSorted.map(function(r){
+  const [ip1Mn,ip1Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie1);}));
+  const [ip5Mn,ip5Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie5);}));
+  const [ip10Mn,ip10Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie10);}));
+  const [inMn,inMx]=mm(tableRowsSorted.map(function(r){return n(r.intensite_max);}));
+
+  const tableRowsMergedHTML = tableRowsSorted.map(function(r){
     const mLabel = MOIS_LABELS[parseInt(r.mois)-1]+' '+r.annee;
+    const j510 = n(r.nb_j_pluie5);
     return '<tr>'
       +'<td>'+mLabel+'</td>'
       +'<td style="'+heatColor(n(r.temp_min_moy),tmnMn,tmnMx,'temp_min')+'">'+fmtC(n(r.temp_min_moy))+'</td>'
@@ -349,22 +355,10 @@ function renderData(){
       +'<td style="'+heatColor(n(r.nb_sup30),s30Mn,s30Mx,'hot')+'">'+fmtI(r.nb_sup30)+'</td>'
       +'<td style="'+heatColor(n(r.nb_sup35),s35Mn,s35Mx,'hot')+'">'+fmtI(r.nb_sup35)+'</td>'
       +'<td style="'+heatColor(n(r.nb_nuit_chaude),ncMn,ncMx,'hot')+'">'+fmtI(r.nb_nuit_chaude)+'</td>'
-      +'</tr>';
-  }).join('');
-
-  const [ip1Mn,ip1Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie1);}));
-  const [ip5Mn,ip5Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie5);}));
-  const [ip10Mn,ip10Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie10);}));
-  const [inMn,inMx]=mm(tableRowsSorted.map(function(r){return n(r.intensite_max);}));
-
-  const tableRowsPrecipHTML = tableRowsSorted.map(function(r){
-    const mLabel = MOIS_LABELS[parseInt(r.mois)-1]+' '+r.annee;
-    return '<tr>'
-      +'<td>'+mLabel+'</td>'
       +'<td style="'+heatColor(n(r.pluie_total),plMn,plMx,'rain')+'">'+fmtC(n(r.pluie_total))+'</td>'
       +'<td style="'+heatColor(n(r.intensite_max),inMn,inMx,'rain')+'">'+fmtC(n(r.intensite_max))+'</td>'
       +'<td style="'+heatColor(n(r.nb_j_pluie1),ip1Mn,ip1Mx,'count')+'">'+fmtI(r.nb_j_pluie1)+'</td>'
-      +'<td style="'+heatColor(n(r.nb_j_pluie5),ip5Mn,ip5Mx,'count')+'">'+fmtI(r.nb_j_pluie5)+'</td>'
+      +'<td style="'+heatColor(j510,0,ip5Mx,'count')+'">'+fmtI(j510)+'</td>'
       +'<td style="'+heatColor(n(r.nb_j_pluie10),ip10Mn,ip10Mx,'count')+'">'+fmtI(r.nb_j_pluie10)+'</td>'
       +'</tr>';
   }).join('');
@@ -374,18 +368,14 @@ function renderData(){
     +'<div class="chart-card"><canvas id="cTemp"></canvas></div>'
     +'<div class="section-header">🌧️ Précipitations — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
-    +'<div class="section-header">📋 Détail températures par mois</div>'
+    +'<div class="section-header">📋 Détail par mois</div>'
     +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
     +'<table><thead><tr>'
-    +'<th>Mois</th><th>Min moy.</th><th>Moy.</th><th>Max moy.</th><th>Min abs.</th><th>Max abs.</th>'
-    +'<th>Gel</th><th>T&lt;-5°</th><th>Sans dégel</th><th>≥25°</th><th>≥30°</th><th>≥35°</th><th>Nuit≥19°</th>'
-    +'</tr></thead><tbody>'+tableRowsTempHTML+'</tbody></table>'
-    +'</div></div></div>'
-    +'<div class="section-header">💧 Détail précipitations par mois</div>'
-    +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
-    +'<table><thead><tr>'
-    +'<th>Mois</th><th>Total (mm)</th><th>Intens. max</th><th>J≥1mm</th><th>J≥5mm</th><th>J≥10mm</th>'
-    +'</tr></thead><tbody>'+tableRowsPrecipHTML+'</tbody></table>'
+    +'<th>Mois</th>'
+    +'<th>T°min moy</th><th>T°moy</th><th>T°max moy</th><th>T°min abs</th><th>T°max abs</th>'
+    +'<th>Gel</th><th>&lt;-5°</th><th>Ss dégel</th><th>≥25°</th><th>≥30°</th><th>≥35°</th><th>Nuit≥19°</th>'
+    +'<th>Pluie mm</th><th>Intens.</th><th>J 1-5mm</th><th>J 5-10mm</th><th>J≥10mm</th>'
+    +'</tr></thead><tbody>'+tableRowsMergedHTML+'</tbody></table>'
     +'</div></div></div>'
     +'<div class="pb"></div>';
 
@@ -406,11 +396,11 @@ function renderData(){
       responsive:true,maintainAspectRatio:true,aspectRatio:1.5,animation:false,
       plugins:{
         legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:10,padding:6}},
-        tooltip:{mode:'index',intersect:false}
+        tooltip:{mode:'index',intersect:false,callbacks:{label:function(c){return c.dataset.label+': '+parseFloat(c.parsed.y).toFixed(1)+'°C';}}}
       },
       scales:{
         x:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'}},
-        y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:'#ccc',font:{size:9}}}
+        y:{ticks:{color:'#ccc',font:{size:9},callback:function(v){return v.toFixed(1)+'°';}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:'#ccc',font:{size:9}}}
       }
     }
   });
@@ -421,9 +411,9 @@ function renderData(){
     data:{
       labels:labels,
       datasets:[
-        {label:'J ≥ 1mm',data:nbJ1,backgroundColor:'rgba(180,210,240,0.6)',borderRadius:2,yAxisID:'y'},
-        {label:'J ≥ 5mm',data:nbJ5,backgroundColor:'rgba(100,160,220,0.6)',borderRadius:2,yAxisID:'y'},
-        {label:'J ≥ 10mm',data:nbJ10,backgroundColor:'rgba(30,100,180,0.6)',borderRadius:2,yAxisID:'y'},
+        {label:'J 1-5mm',data:nbJ1,backgroundColor:'rgba(180,210,240,0.7)',yAxisID:'y',stack:'s'},
+        {label:'J 5-10mm',data:nbJ5,backgroundColor:'rgba(100,160,220,0.7)',yAxisID:'y',stack:'s'},
+        {label:'J ≥ 10mm',data:nbJ10,backgroundColor:'rgba(30,100,180,0.8)',yAxisID:'y',stack:'s'},
         {label:'Précip. total (mm)',data:pluieTot,type:'line',borderColor:'#1a1a2e',backgroundColor:'transparent',tension:0.3,pointRadius:3,borderWidth:2,yAxisID:'y2',
           datalabels:{display:false}}
       ]
@@ -436,7 +426,7 @@ function renderData(){
       },
       scales:{
         x:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'}},
-        y:{ticks:{color:'#ccc',font:{size:9},stepSize:1},grid:{color:'rgba(0,0,0,0.03)'},beginAtZero:true,title:{display:true,text:'nb jours',color:'#ccc',font:{size:9}}},
+        y:{stacked:true,ticks:{color:'#ccc',font:{size:9},stepSize:1},grid:{color:'rgba(0,0,0,0.03)'},beginAtZero:true,title:{display:true,text:'nb jours',color:'#ccc',font:{size:9}}},
         y2:{position:'right',ticks:{color:'#1a3a6a',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true,title:{display:true,text:'mm',color:'#1a3a6a',font:{size:9}}}
       }
     }
