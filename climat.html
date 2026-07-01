@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Météo — Cintré | Climatologie</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+.top-bar { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 14px 16px 26px; color: white; }
+.top-bar-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.top-bar-title { font-size: 18px; font-weight: 700; }
+.top-bar-sub { font-size: 11px; opacity: 0.75; min-height: 16px; }
+.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+
+.year-picker { background: white; margin: 0 16px; border-radius: 16px; padding: 12px 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); margin-top: -18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.year-picker-label { font-size: 10px; color: #aaa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100%; }
+.year-cb { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.year-cb input { accent-color: #11998e; width: 14px; height: 14px; cursor: pointer; }
+.year-cb span { font-size: 12px; font-weight: 600; color: #444; }
+
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+
+.table-section { padding: 0 16px 10px; }
+.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 10px; }
+.table-title { font-size: 12px; font-weight: 700; color: #444; padding: 12px 14px 4px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 5px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th:first-child { text-align: left; padding-left: 12px; }
+tbody tr { border-bottom: 0.5px solid #f5f5f5; }
+tbody tr:hover { background: #f9fff9; }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 6px 5px; text-align: center; font-weight: 500; color: #333; white-space: nowrap; }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #11998e; }
+
+.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
+.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #11998e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+@keyframes spin { to { transform: rotate(360deg); } }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav a.active { color: #11998e; font-weight: 600; }
+.pb { padding-bottom: 80px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-row1">
+    <div>
+      <div style="font-size:11px;opacity:0.75;">📍 Cintré, Bretagne</div>
+      <div class="top-bar-title">🌍 Climatologie annuelle</div>
+    </div>
+    <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
+  </div>
+  <div class="top-bar-sub" id="top-sub">Chargement...</div>
+</div>
+
+<div class="year-picker" id="yearPicker">
+  <div class="year-picker-label">Années</div>
+</div>
+
+<div id="content"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
+
+<nav>
+  <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
+  <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
+  <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
+  <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
+  <a href="climat.html" class="active"><span style="font-size:20px;">🌍</span>Climat</a>
+</nav>
+
+<script>
+const SA = {
+  project_id: "mystic-aileron-471209-p6",
+  client_email: "app-perso@mystic-aileron-471209-p6.iam.gserviceaccount.com",
+  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBjetWxhjhSL4F\nWqQzif3uQoHH8tFceFmKHX0zg8qy9XZjSmpZApkBL1m/UX3VoHEehPd7aLMuC86j\nzvSfvv3kh1fZBzXtW6OGmlDgMLIIFzXJfd9efe24iX7CzGTuQPa6MG+/kg+KlKUT\nXvTOpT8pRLCcIDqkUGpCT0QGERCbQ0oueQXRA9JwXyOfJoukODhWqsgMPEoIt+xV\nFt3WqQQXAeyvHOP6oA4mSJisk7ShrVXKN9R4ik1LO/jXlRlEH2MH3mYbalSHyeic\n/tHkQjJ6wP61NjhQnInqWo7Tny4qtrPwpU3kj+Y7uoDWAiVYIAsLLR62h7YAPNEZ\noD6OFZkvAgMBAAECggEADPR1TIUM1ENcqJoVBHgXfXOJITtw5OoPQC3SG/kVv52r\nU2D/Nj70w74KGUKYlAxdlefbcrCi0ZGrvo4TFIAhmUKv0BBp/R2Vl+RLRn4r5Fu9\nV2Or6DSwjRny2JH6rXG+sd6dFCrwDFv/oojIBO7Nh/MXiROlKStSuWZ5zJgmzuV3\nlW63l7RRLujmr5Z4kaNK8x1EMmhNHg7FvBLJ7MdHOXQh8zPE+1YC9laBqQwZaEvJ\nq51hNKTWFhB5pg4SqL+0pbgzQ4Wg58grIhRaw6z9YYwgFPc59YSRB5xUCfTUt6Hg\nILw9O3Z5CNRKBLzA6Q6jIyzbLEyOGcZTy0Sq2AJr+QKBgQD7E8KPh96aykXYxnvz\nc7jd6Irb3H0Dyd1P2kKb9C6FWWW+XU4wcOws49WMBAp03KJm/h2rEvbzXk1u1eHL\n/SwVhRuZkrTluIitvyvC3TZKCXZGLVKhbRq1TKuqoV2V1vV5Re29E0abliRWhFoP\n2ZFGrIMngvck/knyV63b3U82SQKBgQDFWW7hh0abOnn2KlVR8h4l6Sp/N3Nu1//U\nE9mY9IeCZ2PlwefnCQRuAW/tX6/FGerOne+RmUfoCkEqaOYQNoAiNhzhRLIF4cey\nyJxpsHuFFLssuNX3brm8y1vdQ5FdPSnp1KC/nHUt23bGqo2yO8pBL3rCsl6diTRJ\n5xEMMHtztwKBgDigi0gN79HffwNWOMx+tBowgWj3AKcjFywUYOOFnhxrPjxCFQlt\n3oZ9WEN9AdK7lFFATPaxj0ryYOp3iLaWQiQUYlYvtWb+SK1PKZKIi98E5U0Mmc9Y\nqSZsxWb1gAL0eWbBs83qFAmxQj7VGO7sNgzHickWi6EnTQxAZDDraBspAoGBAIS7\nzS8VHDElmIgwGuidzxcyhym/cv03fFL48t7EgSv9PBx5We9zii4u+0gNlpwb/Wjw\nowQrs0hnNUNAAJUhAvd/q9b7rDz2iak+8qzHTZzJv8apnwfnyjcoE+ZzHp82ly01\nnNSjd9DbDj0600jwm+1R8OBoteiBMtEN/9JR/YZrAoGBANo/HPFk8NnGUINr4bSW\nosfCWI+R6Rq0sNZZE0vu8xPGQA4rEum3fzxTJ66Cshrc2F4ImNjCnN5UhzElMhcI\nSYIXajR5XLsO86ZI8UvFCkI0WuKi5Jx1H9oXOe0DjdOlMR1jnbfEJB8sq3zfb6+o\nvyfjf+yZS/InhZSVb7SclMU+\n-----END PRIVATE KEY-----\n"
+};
+
+let charts = {};
+let selectedYears = [];
+let allYears = [];
+
+function b64url(s){return btoa(unescape(encodeURIComponent(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
+function b64urlB(a){let s='';a.forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
+
+async function getToken(){
+  const now=Math.floor(Date.now()/1000);
+  const h=b64url(JSON.stringify({alg:"RS256",typ:"JWT"}));
+  const p=b64url(JSON.stringify({iss:SA.client_email,scope:"https://www.googleapis.com/auth/bigquery",aud:"https://oauth2.googleapis.com/token",exp:now+3600,iat:now}));
+  const sig=h+"."+p;
+  const pem=SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
+  const der=Uint8Array.from(atob(pem),c=>c.charCodeAt(0));
+  const key=await crypto.subtle.importKey("pkcs8",der.buffer,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);
+  const bytes=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,new TextEncoder().encode(sig));
+  const jwt=sig+"."+b64urlB(new Uint8Array(bytes));
+  const r=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="+jwt});
+  const d=await r.json();
+  if(!d.access_token)throw new Error("Auth: "+JSON.stringify(d));
+  return d.access_token;
+}
+
+async function queryBQ(token,sql){
+  const r=await fetch("https://bigquery.googleapis.com/bigquery/v2/projects/"+SA.project_id+"/queries",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+    body:JSON.stringify({query:sql,useLegacySql:false,timeoutMs:30000,location:"europe-west9"})
+  });
+  const d=await r.json();
+  if(d.error)throw new Error(d.error.message);
+  return d;
+}
+
+function parseRows(res){
+  if(!res.rows)return[];
+  const f=res.schema.fields.map(f=>f.name);
+  return res.rows.map(r=>{const o={};r.f.forEach((v,i)=>o[f[i]]=v.v);return o;});
+}
+
+function n(v){return(v!==null&&v!==''&&v!==undefined)?parseFloat(v):null;}
+function fmt(v,d){d=d!==undefined?d:1;return(v!==null&&v!==''&&v!==undefined&&isFinite(parseFloat(v)))?parseFloat(v).toFixed(d):'—';}
+function pad(x){return String(x).padStart(2,'0');}
+
+const MOIS_LABELS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const MOIS_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+// Couleurs par année
+const YEAR_COLORS = ['#e8604c','#667eea','#11998e','#f5c518','#a855f7','#f97316'];
+
+function heatColor(val,min,max,type){
+  if(val===null||!isFinite(val)||min===max)return'';
+  const r=Math.max(0,Math.min(1,(val-min)/(max-min)));
+  if(type==='temp_max')return'background:rgba('+(Math.round(55+r*200))+','+(Math.round(130-r*100))+',50,0.18);';
+  if(type==='temp_min')return'background:rgba(50,'+(Math.round(100+r*100))+','+(Math.round(221-r*150))+',0.18);';
+  if(type==='temp_moy')return'background:rgba('+(Math.round(55+r*180))+','+(Math.round(130-r*80))+','+(Math.round(221-r*190))+',0.18);';
+  if(type==='rain')return'background:rgba(74,158,221,'+(0.06+r*0.35)+');';
+  if(type==='count')return r>0?'background:rgba(74,158,221,'+(0.1+r*0.3)+');':'';
+  if(type==='gel')return r>0?'background:rgba(180,220,255,'+(0.1+r*0.4)+');':'';
+  if(type==='hot')return r>0?'background:rgba(255,140,50,'+(0.1+r*0.4)+');':'';
+  return'';
+}
+
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function makeChart(id, config){
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if(!ctx)return;
+  charts[id] = new Chart(ctx.getContext('2d'), config);
+}
+
+// ---- Sélecteur d'années ----
+async function initYears(){
+  const token = await getToken();
+  const res = await queryBQ(token, "SELECT DISTINCT EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS yr FROM `meteo_cintre.data_5_min` ORDER BY yr ASC");
+  allYears = parseRows(res).map(function(r){return parseInt(r.yr);});
+  // Par défaut : toutes les années
+  selectedYears = allYears.slice();
+  buildYearPicker();
+  loadData();
+}
+
+function buildYearPicker(){
+  const container = document.getElementById('yearPicker');
+  container.innerHTML = '<div class="year-picker-label">Années</div>';
+  allYears.forEach(function(y,i){
+    const checked = selectedYears.indexOf(y)!==-1;
+    const color = YEAR_COLORS[i%YEAR_COLORS.length];
+    const lbl = document.createElement('label');
+    lbl.className = 'year-cb';
+    lbl.innerHTML = '<input type="checkbox" value="'+y+'"'+(checked?' checked':'')+' onchange="toggleYear('+y+')">'
+      +'<span style="color:'+(checked?color:'#aaa')+'">'+y+'</span>';
+    container.appendChild(lbl);
+  });
+}
+
+function toggleYear(y){
+  const idx = selectedYears.indexOf(y);
+  if(idx===-1) selectedYears.push(y);
+  else selectedYears.splice(idx,1);
+  selectedYears.sort();
+  buildYearPicker();
+  if(selectedYears.length>0) renderData();
+}
+
+// ---- Cache des données ----
+let cachedRows = null;
+let cachedToken = null;
+
+async function loadData(){
+  document.getElementById('content').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
+  try{
+    cachedToken = await getToken();
+    // Une seule requête : tous les agrégats mensuels de toute la table
+    const sql = `SELECT
+      EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee,
+      EXTRACT(MONTH FROM DATE(obsTimeLocal)) AS mois,
+      -- Température
+      AVG(daily_tmax) AS temp_max_moy,
+      AVG(daily_tmin) AS temp_min_moy,
+      AVG(daily_tmoy) AS temp_moy,
+      MAX(daily_tmax) AS temp_max_abs,
+      MIN(daily_tmin) AS temp_min_abs,
+      -- Précipitations
+      SUM(daily_pluie) AS pluie_total,
+      MAX(daily_intensite) AS intensite_max,
+      COUNTIF(daily_pluie>=1) AS nb_j_pluie1,
+      COUNTIF(daily_pluie>=5) AS nb_j_pluie5,
+      COUNTIF(daily_pluie>=10) AS nb_j_pluie10,
+      -- Seuils température
+      COUNTIF(daily_tmin<0) AS nb_gel,
+      COUNTIF(daily_tmin<-5) AS nb_gel5,
+      COUNTIF(daily_tmax<0) AS nb_sans_degel,
+      COUNTIF(daily_tmax>=20) AS nb_sup20,
+      COUNTIF(daily_tmax>=25) AS nb_sup25,
+      COUNTIF(daily_tmax>=30) AS nb_sup30,
+      COUNTIF(daily_tmax>=35) AS nb_sup35,
+      COUNTIF(daily_tmin>=19) AS nb_nuit_chaude
+    FROM (
+      SELECT
+        DATE(obsTimeLocal) AS jour,
+        MAX(tempHigh) AS daily_tmax,
+        MIN(tempLow) AS daily_tmin,
+        AVG(tempAvg) AS daily_tmoy,
+        SUM(somme) AS daily_pluie,
+        MAX(precipRate) AS daily_intensite
+      FROM \`meteo_cintre.data_5_min\`
+      GROUP BY jour
+    )
+    GROUP BY annee, mois
+    ORDER BY annee, mois`;
+
+    const res = await queryBQ(cachedToken, sql);
+    cachedRows = parseRows(res);
+    renderData();
+  }catch(e){
+    document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
+  }
+}
+
+function renderData(){
+  if(!cachedRows) return;
+  const rows = cachedRows.filter(function(r){return selectedYears.indexOf(parseInt(r.annee))!==-1;});
+  if(!rows.length){
+    document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour les années sélectionnées.</div></div>';
+    return;
+  }
+
+  // Mise à jour top-sub
+  const yearsStr = selectedYears.join(', ');
+  document.getElementById('top-sub').textContent = selectedYears.length+' année'+(selectedYears.length>1?'s':'')+' sélectionnée'+(selectedYears.length>1?'s':'')+' : '+yearsStr;
+
+  // Moyenne par mois (Jan→Déc) sur les années sélectionnées
+  const byMois = {}; // mois 1-12 → [{annee,row}]
+  rows.forEach(function(r){
+    const m = parseInt(r.mois);
+    if(!byMois[m]) byMois[m]=[];
+    byMois[m].push(r);
+  });
+
+  const moisList = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+  function avgField(mois, key){
+    const arr = byMois[mois]||[];
+    const vals = arr.map(function(r){return n(r[key]);}).filter(function(v){return v!==null;});
+    if(!vals.length) return null;
+    return vals.reduce(function(a,b){return a+b;},0)/vals.length;
+  }
+  function sumField(mois, key){
+    const arr = byMois[mois]||[];
+    const vals = arr.map(function(r){return n(r[key]);}).filter(function(v){return v!==null;});
+    if(!vals.length) return null;
+    return vals.reduce(function(a,b){return a+b;},0)/arr.length; // moyenne des sommes mensuelles
+  }
+  function maxField(mois, key){
+    const arr = byMois[mois]||[];
+    const vals = arr.map(function(r){return n(r[key]);}).filter(function(v){return v!==null;});
+    return vals.length ? Math.max.apply(null,vals) : null;
+  }
+  function minField(mois, key){
+    const arr = byMois[mois]||[];
+    const vals = arr.map(function(r){return n(r[key]);}).filter(function(v){return v!==null;});
+    return vals.length ? Math.min.apply(null,vals) : null;
+  }
+  function avgCountField(mois, key){
+    const arr = byMois[mois]||[];
+    const vals = arr.map(function(r){return n(r[key]);}).filter(function(v){return v!==null;});
+    if(!vals.length) return null;
+    return vals.reduce(function(a,b){return a+b;},0)/arr.length;
+  }
+
+  const labels = MOIS_LABELS;
+
+  // Données graphique température
+  const tempMaxMoy = moisList.map(function(m){return avgField(m,'temp_max_moy');});
+  const tempMinMoy = moisList.map(function(m){return avgField(m,'temp_min_moy');});
+  const tempMoy    = moisList.map(function(m){return avgField(m,'temp_moy');});
+  const tempMaxAbs = moisList.map(function(m){return maxField(m,'temp_max_abs');});
+  const tempMinAbs = moisList.map(function(m){return minField(m,'temp_min_abs');});
+
+  // Données graphique précipitations
+  const pluieTot   = moisList.map(function(m){return sumField(m,'pluie_total');});
+  const nbJ1       = moisList.map(function(m){return avgCountField(m,'nb_j_pluie1');});
+  const nbJ5       = moisList.map(function(m){return avgCountField(m,'nb_j_pluie5');});
+  const nbJ10      = moisList.map(function(m){return avgCountField(m,'nb_j_pluie10');});
+
+  // Tableau mensuel : ligne par (annee,mois) trié
+  const tableRowsSorted = rows.slice().sort(function(a,b){
+    return parseInt(a.annee)*100+parseInt(a.mois) - (parseInt(b.annee)*100+parseInt(b.mois));
+  });
+
+  // min/max pour heatColor tableau
+  function mm(arr){const f=arr.filter(function(v){return v!==null&&isFinite(v);});return f.length?[Math.min.apply(null,f),Math.max.apply(null,f)]:[0,0];}
+  const [tmxMn,tmxMx]=mm(tableRowsSorted.map(function(r){return n(r.temp_max_moy);}));
+  const [tmnMn,tmnMx]=mm(tableRowsSorted.map(function(r){return n(r.temp_min_moy);}));
+  const [tmyMn,tmyMx]=mm(tableRowsSorted.map(function(r){return n(r.temp_moy);}));
+  const [txaMn,txaMx]=mm(tableRowsSorted.map(function(r){return n(r.temp_max_abs);}));
+  const [tnaMn,tnaMx]=mm(tableRowsSorted.map(function(r){return n(r.temp_min_abs);}));
+  const [plMn,plMx]  =mm(tableRowsSorted.map(function(r){return n(r.pluie_total);}));
+  const [g5Mn,g5Mx]  =mm(tableRowsSorted.map(function(r){return n(r.nb_gel5);}));
+  const [sdMn,sdMx]  =mm(tableRowsSorted.map(function(r){return n(r.nb_sans_degel);}));
+  const [s25Mn,s25Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_sup25);}));
+  const [s30Mn,s30Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_sup30);}));
+  const [s35Mn,s35Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_sup35);}));
+  const [ncMn,ncMx]  =mm(tableRowsSorted.map(function(r){return n(r.nb_nuit_chaude);}));
+
+  function fmtC(v,d){return fmt(v,d!==undefined?d:1);}
+  function fmtI(v){const nv=n(v);return(nv!==null&&nv>0)?Math.round(nv):'—';}
+
+  const tableRowsTempHTML = tableRowsSorted.map(function(r){
+    const mLabel = MOIS_LABELS[parseInt(r.mois)-1]+' '+r.annee;
+    return '<tr>'
+      +'<td>'+mLabel+'</td>'
+      +'<td style="'+heatColor(n(r.temp_min_moy),tmnMn,tmnMx,'temp_min')+'">'+fmtC(n(r.temp_min_moy))+'</td>'
+      +'<td style="'+heatColor(n(r.temp_moy),tmyMn,tmyMx,'temp_moy')+'">'+fmtC(n(r.temp_moy))+'</td>'
+      +'<td style="'+heatColor(n(r.temp_max_moy),tmxMn,tmxMx,'temp_max')+'">'+fmtC(n(r.temp_max_moy))+'</td>'
+      +'<td style="'+heatColor(n(r.temp_min_abs),tnaMn,tnaMx,'temp_min')+'">'+fmtC(n(r.temp_min_abs))+'</td>'
+      +'<td style="'+heatColor(n(r.temp_max_abs),txaMn,txaMx,'temp_max')+'">'+fmtC(n(r.temp_max_abs))+'</td>'
+      +'<td style="'+heatColor(n(r.nb_gel),0,10,'gel')+'">'+fmtI(r.nb_gel)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_gel5),g5Mn,g5Mx,'gel')+'">'+fmtI(r.nb_gel5)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_sans_degel),sdMn,sdMx,'gel')+'">'+fmtI(r.nb_sans_degel)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_sup25),s25Mn,s25Mx,'hot')+'">'+fmtI(r.nb_sup25)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_sup30),s30Mn,s30Mx,'hot')+'">'+fmtI(r.nb_sup30)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_sup35),s35Mn,s35Mx,'hot')+'">'+fmtI(r.nb_sup35)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_nuit_chaude),ncMn,ncMx,'hot')+'">'+fmtI(r.nb_nuit_chaude)+'</td>'
+      +'</tr>';
+  }).join('');
+
+  const [ip1Mn,ip1Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie1);}));
+  const [ip5Mn,ip5Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie5);}));
+  const [ip10Mn,ip10Mx]=mm(tableRowsSorted.map(function(r){return n(r.nb_j_pluie10);}));
+  const [inMn,inMx]=mm(tableRowsSorted.map(function(r){return n(r.intensite_max);}));
+
+  const tableRowsPrecipHTML = tableRowsSorted.map(function(r){
+    const mLabel = MOIS_LABELS[parseInt(r.mois)-1]+' '+r.annee;
+    return '<tr>'
+      +'<td>'+mLabel+'</td>'
+      +'<td style="'+heatColor(n(r.pluie_total),plMn,plMx,'rain')+'">'+fmtC(n(r.pluie_total))+'</td>'
+      +'<td style="'+heatColor(n(r.intensite_max),inMn,inMx,'rain')+'">'+fmtC(n(r.intensite_max))+'</td>'
+      +'<td style="'+heatColor(n(r.nb_j_pluie1),ip1Mn,ip1Mx,'count')+'">'+fmtI(r.nb_j_pluie1)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_j_pluie5),ip5Mn,ip5Mx,'count')+'">'+fmtI(r.nb_j_pluie5)+'</td>'
+      +'<td style="'+heatColor(n(r.nb_j_pluie10),ip10Mn,ip10Mx,'count')+'">'+fmtI(r.nb_j_pluie10)+'</td>'
+      +'</tr>';
+  }).join('');
+
+  document.getElementById('content').innerHTML =
+    '<div class="section-header">🌡️ Températures — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
+    +'<div class="chart-card"><canvas id="cTemp"></canvas></div>'
+    +'<div class="section-header">🌧️ Précipitations — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
+    +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
+    +'<div class="section-header">📋 Détail températures par mois</div>'
+    +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
+    +'<table><thead><tr>'
+    +'<th>Mois</th><th>Min moy.</th><th>Moy.</th><th>Max moy.</th><th>Min abs.</th><th>Max abs.</th>'
+    +'<th>Gel</th><th>T&lt;-5°</th><th>Sans dégel</th><th>≥25°</th><th>≥30°</th><th>≥35°</th><th>Nuit≥19°</th>'
+    +'</tr></thead><tbody>'+tableRowsTempHTML+'</tbody></table>'
+    +'</div></div></div>'
+    +'<div class="section-header">💧 Détail précipitations par mois</div>'
+    +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
+    +'<table><thead><tr>'
+    +'<th>Mois</th><th>Total (mm)</th><th>Intens. max</th><th>J≥1mm</th><th>J≥5mm</th><th>J≥10mm</th>'
+    +'</tr></thead><tbody>'+tableRowsPrecipHTML+'</tbody></table>'
+    +'</div></div></div>'
+    +'<div class="pb"></div>';
+
+  // Graphique températures
+  makeChart('cTemp',{
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'T° min moy.',data:tempMinMoy,borderColor:'#4a9edd',backgroundColor:'rgba(74,158,221,0.08)',fill:true,tension:0.3,pointRadius:3,borderWidth:2},
+        {label:'T° moy.',data:tempMoy,borderColor:'#11998e',backgroundColor:'transparent',tension:0.3,pointRadius:3,borderWidth:2},
+        {label:'T° max moy.',data:tempMaxMoy,borderColor:'#e8604c',backgroundColor:'rgba(232,96,76,0.06)',fill:true,tension:0.3,pointRadius:3,borderWidth:2},
+        {label:'T° max abs.',data:tempMaxAbs,borderColor:'rgba(232,96,76,0.35)',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]},
+        {label:'T° min abs.',data:tempMinAbs,borderColor:'rgba(74,158,221,0.35)',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:true,aspectRatio:1.5,animation:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:10,padding:6}},
+        tooltip:{mode:'index',intersect:false}
+      },
+      scales:{
+        x:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'}},
+        y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:'#ccc',font:{size:9}}}
+      }
+    }
+  });
+
+  // Graphique précipitations
+  makeChart('cPluie',{
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'J ≥ 1mm',data:nbJ1,backgroundColor:'rgba(180,210,240,0.6)',borderRadius:2,yAxisID:'y'},
+        {label:'J ≥ 5mm',data:nbJ5,backgroundColor:'rgba(100,160,220,0.6)',borderRadius:2,yAxisID:'y'},
+        {label:'J ≥ 10mm',data:nbJ10,backgroundColor:'rgba(30,100,180,0.6)',borderRadius:2,yAxisID:'y'},
+        {label:'Précip. total (mm)',data:pluieTot,type:'line',borderColor:'#1a1a2e',backgroundColor:'transparent',tension:0.3,pointRadius:3,borderWidth:2,yAxisID:'y2',
+          datalabels:{display:false}}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:true,aspectRatio:1.5,animation:false,
+      plugins:{
+        legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:10,padding:6}},
+        tooltip:{mode:'index',intersect:false}
+      },
+      scales:{
+        x:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'}},
+        y:{ticks:{color:'#ccc',font:{size:9},stepSize:1},grid:{color:'rgba(0,0,0,0.03)'},beginAtZero:true,title:{display:true,text:'nb jours',color:'#ccc',font:{size:9}}},
+        y2:{position:'right',ticks:{color:'#1a3a6a',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true,title:{display:true,text:'mm',color:'#1a3a6a',font:{size:9}}}
+      }
+    }
+  });
+}
+
+// Init
+initYears();
+</script>
+</body>
+</html>
