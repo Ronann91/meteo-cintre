@@ -327,13 +327,15 @@ async function loadData(){
     GROUP BY annee, jour
     ORDER BY annee, jour\`;
 
-    const [res, resCumul] = await Promise.all([
-      queryBQ(cachedToken, sql),
-      queryBQ(cachedToken, sqlCumul)
-    ]);
+    // Requête principale mensuelle en priorité
+    const res = await queryBQ(cachedToken, sql);
     cachedRows = parseRows(res);
-    cachedCumulRows = parseRows(resCumul);
     renderData();
+    // Requête cumul journalier en arrière-plan (plus lourde)
+    queryBQ(cachedToken, sqlCumul).then(function(resCumul){
+      cachedCumulRows = parseRows(resCumul);
+      renderCumulChart();
+    }).catch(function(e){console.warn('Cumul chart error:', e.message);});
   }catch(e){
     document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
   }
@@ -458,53 +460,6 @@ function renderData(){
       +'</tr>';
   }).join('');
 
-  // Graphique cumul : datasets par année
-  const maxYear = Math.max.apply(null, selectedYears);
-  const cumulDatasets = selectedYears.map(function(y, i){
-    const color = YEAR_COLORS[allYears.indexOf(y) % YEAR_COLORS.length];
-    const isCurrent = y === maxYear;
-    const dayRows = (cachedCumulRows||[]).filter(function(r){return parseInt(r.annee)===y;});
-    // Construire tableau 366 jours (index 0=01-01)
-    const dailyMap = {};
-    dayRows.forEach(function(r){
-      const d = new Date(r.jour+'T12:00:00');
-      const key = pad(d.getMonth()+1)+'-'+pad(d.getDate());
-      dailyMap[key] = n(r.daily_pluie)||0;
-    });
-    // Générer labels jan-déc et cumul
-    const data = []; let cumul = 0;
-    const isLeap = (y%4===0&&(y%100!==0||y%400===0));
-    const daysInMonth = [31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31];
-    for(let m=0;m<12;m++){
-      for(let d=1;d<=daysInMonth[m];d++){
-        const key = pad(m+1)+'-'+pad(d);
-        cumul += dailyMap[key]||0;
-        data.push(parseFloat(cumul.toFixed(1)));
-      }
-    }
-    return {
-      label: String(y),
-      data: data,
-      borderColor: isCurrent ? '#1a1a2e' : color,
-      backgroundColor: 'transparent',
-      borderWidth: isCurrent ? 3 : 1.2,
-      tension: 0.2,
-      pointRadius: 0,
-      borderDash: isCurrent ? [] : [4,3],
-      order: isCurrent ? 0 : 1
-    };
-  });
-  // Labels axe X : MM-DD tous les 14 jours
-  const cumulLabels = [];
-  const isLeapRef = true;
-  const daysInMonthRef = [31,29,31,30,31,30,31,31,30,31,30,31];
-  for(let m=0;m<12;m++){
-    for(let d=1;d<=daysInMonthRef[m];d++){
-      const show = (d===1||d===15);
-      cumulLabels.push(show?pad(m+1)+'-'+pad(d):'');
-    }
-  }
-
   document.getElementById('content').innerHTML =
     '<div class="section-header">🌡️ Températures — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cTemp"></canvas></div>'
@@ -575,7 +530,55 @@ function renderData(){
       }
     }
   });
-  // Graphique cumul annuel
+  // Lancer le cumul si déjà chargé
+  if(cachedCumulRows) renderCumulChart();
+}
+
+function renderCumulChart(){
+  const cumulEl = document.getElementById('cCumul');
+  if(!cumulEl) return;
+
+  const maxYear = Math.max.apply(null, selectedYears);
+  const cumulDatasets = selectedYears.map(function(y, i){
+    const color = YEAR_COLORS[allYears.indexOf(y) % YEAR_COLORS.length];
+    const isCurrent = y === maxYear;
+    const dayRows = (cachedCumulRows||[]).filter(function(r){return parseInt(r.annee)===y;});
+    const dailyMap = {};
+    dayRows.forEach(function(r){
+      const d = new Date(r.jour+'T12:00:00');
+      const key = pad(d.getMonth()+1)+'-'+pad(d.getDate());
+      dailyMap[key] = n(r.daily_pluie)||0;
+    });
+    const data = []; let cumul = 0;
+    const isLeap = (y%4===0&&(y%100!==0||y%400===0));
+    const daysInMonth = [31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31];
+    for(let m=0;m<12;m++){
+      for(let d=1;d<=daysInMonth[m];d++){
+        const key = pad(m+1)+'-'+pad(d);
+        cumul += dailyMap[key]||0;
+        data.push(parseFloat(cumul.toFixed(1)));
+      }
+    }
+    return {
+      label: String(y),
+      data: data,
+      borderColor: isCurrent ? '#1a1a2e' : color,
+      backgroundColor: 'transparent',
+      borderWidth: isCurrent ? 3 : 1.2,
+      tension: 0.2,
+      pointRadius: 0,
+      borderDash: isCurrent ? [] : [4,3],
+      order: isCurrent ? 0 : 1
+    };
+  });
+  const cumulLabels = [];
+  const daysInMonthRef = [31,29,31,30,31,30,31,31,30,31,30,31];
+  for(let m=0;m<12;m++){
+    for(let d=1;d<=daysInMonthRef[m];d++){
+      cumulLabels.push((d===1||d===15)?pad(m+1)+'-'+pad(d):'');
+    }
+  }
+
   makeChart('cCumul',{
     type:'line',
     data:{labels:cumulLabels, datasets:cumulDatasets},
