@@ -199,8 +199,8 @@ async function loadData(){
     cachedToken = await getToken();
     // Une seule requête : tous les agrégats mensuels de toute la table
     const sql = `SELECT
-      EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee,
-      EXTRACT(MONTH FROM DATE(obsTimeLocal)) AS mois,
+      EXTRACT(YEAR FROM jour) AS annee,
+      EXTRACT(MONTH FROM jour) AS mois,
       -- Température
       AVG(daily_tmax) AS temp_max_moy,
       AVG(daily_tmin) AS temp_min_moy,
