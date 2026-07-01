@@ -318,14 +318,7 @@ async function loadData(){
     ORDER BY annee, mois`;
 
     // Requête cumul journalier (pour graphique cumul annuel) — pas de filtre mois, toute l'année
-    const sqlCumul = \`SELECT
-      EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee,
-      DATE(obsTimeLocal) AS jour,
-      SUM(somme) AS daily_pluie
-    FROM \`meteo_cintre.data_5_min\`
-    WHERE precipRate < 150
-    GROUP BY annee, jour
-    ORDER BY annee, jour\`;
+    const sqlCumul = "SELECT EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee, DATE(obsTimeLocal) AS jour, SUM(somme) AS daily_pluie FROM `meteo_cintre.data_5_min` WHERE precipRate < 150 GROUP BY annee, jour ORDER BY annee, jour";
 
     // Requête principale mensuelle en priorité
     const res = await queryBQ(cachedToken, sql);
