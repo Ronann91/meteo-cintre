@@ -279,8 +279,8 @@ async function loadData(){
     cachedToken = await getToken();
     // Une seule requête : tous les agrégats mensuels de toute la table
     const sql = `SELECT
-      EXTRACT(YEAR FROM jour) AS annee,
-      EXTRACT(MONTH FROM jour) AS mois,
+      annee,
+      mois,
       -- Température
       AVG(daily_tmax) AS temp_max_moy,
       AVG(daily_tmin) AS temp_min_moy,
@@ -305,20 +305,21 @@ async function loadData(){
     FROM (
       SELECT
         DATE(obsTimeLocal) AS jour,
+        EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee,
+        EXTRACT(MONTH FROM DATE(obsTimeLocal)) AS mois,
         MAX(tempHigh) AS daily_tmax,
         MIN(tempLow) AS daily_tmin,
         AVG(tempAvg) AS daily_tmoy,
-        SUM(somme) AS daily_pluie,
-        MAX(precipRate) AS daily_intensite
+        SUM(CASE WHEN precipRate < 150 THEN somme ELSE 0 END) AS daily_pluie,
+        MAX(CASE WHEN precipRate < 150 THEN precipRate ELSE NULL END) AS daily_intensite
       FROM \`meteo_cintre.data_5_min\`
-      WHERE precipRate < 150
-      GROUP BY jour
+      GROUP BY jour, annee, mois
     )
     GROUP BY annee, mois
     ORDER BY annee, mois`;
 
     // Requête cumul journalier (pour graphique cumul annuel) — pas de filtre mois, toute l'année
-    const sqlCumul = "SELECT EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee, DATE(obsTimeLocal) AS jour, SUM(somme) AS daily_pluie FROM `meteo_cintre.data_5_min` WHERE precipRate < 150 GROUP BY annee, jour ORDER BY annee, jour";
+    const sqlCumul = "SELECT EXTRACT(YEAR FROM DATE(obsTimeLocal)) AS annee, DATE(obsTimeLocal) AS jour, SUM(CASE WHEN precipRate < 150 THEN somme ELSE 0 END) AS daily_pluie FROM `meteo_cintre.data_5_min` GROUP BY annee, jour ORDER BY annee, jour";
 
     // Requête principale mensuelle en priorité
     const res = await queryBQ(cachedToken, sql);
@@ -327,7 +328,15 @@ async function loadData(){
     // Requête cumul journalier en arrière-plan (plus lourde)
     queryBQ(cachedToken, sqlCumul).then(function(resCumul){
       cachedCumulRows = parseRows(resCumul);
-      renderCumulChart();
+      // Attendre que le canvas soit dans le DOM
+      const waitAndRender = function(){
+        if(document.getElementById('cCumul')){
+          renderCumulChart();
+        } else {
+          setTimeout(waitAndRender, 100);
+        }
+      };
+      waitAndRender();
     }).catch(function(e){console.warn('Cumul chart error:', e.message);});
   }catch(e){
     document.getElementById('content').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
@@ -461,7 +470,7 @@ function renderData(){
     +'<div class="section-header">🌧️ Précipitations — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
     +'<div class="section-header">📈 Cumul précipitations annuel</div>'
-    +'<div class="chart-card"><canvas id="cCumul"></canvas></div>'
+    +'<div class="chart-card"><canvas id="cCumul" style="height:700px;"></canvas></div>'
     +'<div class="section-header">📋 Détail par mois</div>'
     +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
     +'<table><thead><tr>'
@@ -525,28 +534,26 @@ function renderData(){
       }
     }
   });
-  // Lancer le cumul si déjà chargé
-  if(cachedCumulRows) renderCumulChart();
+  // Lancer le cumul si déjà chargé — après injection DOM
+  if(cachedCumulRows) setTimeout(renderCumulChart, 0);
 }
 
 function renderCumulChart(){
   const cumulEl = document.getElementById('cCumul');
   if(!cumulEl) return;
 
-  const maxYear = Math.max.apply(null, selectedYears);
-  // Date du jour pour tronquer l'année en cours
   const today = new Date();
   const todayMMDD = pad(today.getMonth()+1)+'-'+pad(today.getDate());
+  const maxYear = Math.max.apply(null, selectedYears);
 
-  // Construire les labels (MM-DD) pour chaque jour de l'année (base année bissextile)
   const daysInMonthRef = [31,29,31,30,31,30,31,31,30,31,30,31];
-  const allDayKeys = []; // ['01-01','01-02',...]
+  const allDayKeys = [];
   for(let m=0;m<12;m++){
     for(let d=1;d<=daysInMonthRef[m];d++){
       allDayKeys.push(pad(m+1)+'-'+pad(d));
     }
   }
-  // Labels affichés : 01-Jan, 15-Jan, 01-Fév...
+
   const MOIS_FR_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   const cumulLabels = allDayKeys.map(function(k){
     const parts = k.split('-');
@@ -554,17 +561,17 @@ function renderCumulChart(){
     const d = parseInt(parts[1]);
     if(d===1) return '1 '+MOIS_FR_SHORT[mIdx];
     if(d===15) return '15 '+MOIS_FR_SHORT[mIdx];
-    return null;
+    return '';
   });
 
-  const cumulDatasets = selectedYears.map(function(y, i){
+  const cumulDatasets = selectedYears.map(function(y){
     const color = YEAR_COLORS[allYears.indexOf(y) % YEAR_COLORS.length];
     const isCurrent = y === maxYear;
     const dayRows = (cachedCumulRows||[]).filter(function(r){return parseInt(r.annee)===y;});
     const dailyMap = {};
     dayRows.forEach(function(r){
-      const d = new Date(r.jour+'T12:00:00');
-      const key = pad(d.getMonth()+1)+'-'+pad(d.getDate());
+      const parts = r.jour.split('-');
+      const key = parts[1]+'-'+parts[2];
       dailyMap[key] = n(r.daily_pluie)||0;
     });
     const data = []; let cumul = 0;
@@ -573,7 +580,6 @@ function renderCumulChart(){
     for(let m=0;m<12;m++){
       for(let d=1;d<=daysInMonth[m];d++){
         const key = pad(m+1)+'-'+pad(d);
-        // Pour l'année en cours, stopper après aujourd'hui
         if(isCurrent && key > todayMMDD){
           data.push(null);
         } else {
@@ -600,32 +606,26 @@ function renderCumulChart(){
     type:'line',
     data:{labels:cumulLabels, datasets:cumulDatasets},
     options:{
-      responsive:true,maintainAspectRatio:true,aspectRatio:1.5,animation:false,
+      responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{
         legend:{display:false},
         tooltip:{
           mode:'index',intersect:false,
           callbacks:{
-            title:function(items){
-              const i = items[0]?items[0].dataIndex:0;
-              return allDayKeys[i]||'';
-            },
-            label:function(c){
-              if(c.parsed.y===null) return null;
-              return c.dataset.label+': '+c.parsed.y.toFixed(0)+' mm';
-            }
+            title:function(items){return items[0]?allDayKeys[items[0].dataIndex]:'';},
+            label:function(c){if(c.parsed.y===null)return null;return c.dataset.label+': '+c.parsed.y.toFixed(0)+' mm';}
           }
         }
       },
       scales:{
         x:{
-          ticks:{
-            color:'#999',font:{size:9},maxRotation:0,autoSkip:false,
-            callback:function(v,i){return cumulLabels[i]||'';}
+          ticks:{color:'#999',font:{size:9},maxRotation:0,autoSkip:false,
+            callback:function(v,i){return cumulLabels[i]||null;}
           },
           grid:{color:'rgba(0,0,0,0.03)'}
         },
-        y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true,title:{display:true,text:'mm',color:'#ccc',font:{size:9}}}
+        y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true,
+          title:{display:true,text:'mm',color:'#ccc',font:{size:9}}}
       }
     }
   });
