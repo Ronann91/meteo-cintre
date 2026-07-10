@@ -395,7 +395,7 @@ async function loadData() {
           AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul,
           somme AS pluie, precipRate AS pluie_rate,
           windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent,
-          humidityAvg AS humidite, solarRadiationHigh AS soleil,
+          humidityAvg AS humidite, pressureMax AS pression, solarRadiationHigh AS soleil,
           tempAvg
         FROM \`meteo_cintre.data_5_min_today\`
         ORDER BY obsTimeLocal ASC
@@ -493,6 +493,8 @@ async function loadData() {
         </div>
       </div>
 
+      ${buildHourlyTable(rows)}
+
       <div class="section-header">Graphiques du jour</div>
       <div class="chart-card">
         <div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div>
@@ -510,8 +512,14 @@ async function loadData() {
         <div class="chart-card-title"><span>☀️ Rayonnement solaire</span><em>W/m²</em></div>
         <canvas id="cSoleil"></canvas>
       </div>
-
-      ${buildHourlyTable(rows)}
+      <div class="chart-card">
+        <div class="chart-card-title"><span>💦 Humidité</span><em>%</em></div>
+        <canvas id="cHumidite"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title"><span>🔵 Pression</span><em>hPa</em></div>
+        <canvas id="cPression"></canvas>
+      </div>
     `;
 
     makeChart('cTemp','line',labels,[
@@ -525,17 +533,160 @@ async function loadData() {
       {label:'Intensité',data:rows.map(r=>n(r.pluie_rate)),type:'line',borderColor:'#1a6aaa',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5}
     ]);
 
-    makeChart('cVent','line',labels,[
-      {label:'Moy',data:rows.map(r=>n(r.vent)),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
-      {label:'Rafale',data:rows.map(r=>n(r.rafale)),borderColor:'#ccc',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
-    ]);
+    // Graphique vent avec surface colorée par direction (16 secteurs)
+    (function(){
+      // Palette 16 directions : dégradé N(bleu)→E(jaune)→S(rouge)→O(vert)→N
+      const DIR16_COLORS = [
+        'rgba(102,126,234,0.55)',  // N
+        'rgba(140,140,220,0.55)',  // NNE
+        'rgba(180,160,200,0.55)',  // NE
+        'rgba(210,180,150,0.55)',  // ENE
+        'rgba(245,197,24,0.55)',   // E
+        'rgba(240,170,30,0.55)',   // ESE
+        'rgba(235,140,60,0.55)',   // SE
+        'rgba(235,110,70,0.55)',   // SSE
+        'rgba(232,96,76,0.55)',    // S
+        'rgba(200,90,100,0.55)',   // SSO
+        'rgba(160,100,130,0.55)', // SO
+        'rgba(100,120,160,0.55)', // OSO
+        'rgba(29,158,117,0.55)',   // O
+        'rgba(50,150,150,0.55)',   // ONO
+        'rgba(70,140,190,0.55)',   // NO
+        'rgba(90,130,215,0.55)',   // NNO
+      ];
+      const DIR16_LABELS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+
+      function dirToColor(deg){
+        if(deg===null) return 'rgba(200,200,200,0.3)';
+        return DIR16_COLORS[Math.round(deg/22.5)%16];
+      }
+      function dirToLabel(deg){
+        if(deg===null) return '—';
+        return DIR16_LABELS[Math.round(deg/22.5)%16];
+      }
+
+      // Plugin qui dessine la surface colorée sous la courbe segment par segment
+      const coloredFillPlugin = {
+        id: 'coloredFill',
+        beforeDatasetsDraw: function(chart){
+          const ds = chart.data.datasets[0];
+          const meta = chart.getDatasetMeta(0);
+          const {ctx, chartArea:{bottom}, scales:{x,y}} = chart;
+          const dirData = rows.map(function(r){return n(r.dir_vent);});
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
+          ctx.clip();
+
+          for(let i=0;i<meta.data.length-1;i++){
+            const p1 = meta.data[i];
+            const p2 = meta.data[i+1];
+            if(!p1||!p2) continue;
+            const x1=p1.x, x2=p2.x;
+            const y1=p1.y, y2=p2.y;
+            const color = dirToColor(dirData[i]);
+            ctx.beginPath();
+            ctx.moveTo(x1, bottom);
+            ctx.lineTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x2, bottom);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      };
+
+      // Légende custom 4 points cardinaux
+      const legendDatasets = [
+        {label:'Nord',  borderColor:'rgba(102,126,234,0.8)',backgroundColor:'rgba(102,126,234,0.8)',data:[],pointRadius:0,borderWidth:8,type:'line'},
+        {label:'Est',   borderColor:'rgba(245,197,24,0.8)', backgroundColor:'rgba(245,197,24,0.8)', data:[],pointRadius:0,borderWidth:8,type:'line'},
+        {label:'Sud',   borderColor:'rgba(232,96,76,0.8)',  backgroundColor:'rgba(232,96,76,0.8)',  data:[],pointRadius:0,borderWidth:8,type:'line'},
+        {label:'Ouest', borderColor:'rgba(29,158,117,0.8)', backgroundColor:'rgba(29,158,117,0.8)', data:[],pointRadius:0,borderWidth:8,type:'line'},
+      ];
+
+      if(charts['cVent']) charts['cVent'].destroy();
+      const ctx = document.getElementById('cVent').getContext('2d');
+      charts['cVent'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Vent moy.',
+              data: rows.map(function(r){return n(r.vent);}),
+              borderColor: 'rgba(30,30,30,0.7)',
+              backgroundColor: 'transparent',
+              fill: false,
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 1.5
+            },
+            {
+              label: 'Rafale',
+              data: rows.map(function(r){return n(r.rafale);}),
+              borderColor: 'rgba(150,150,150,0.6)',
+              backgroundColor: 'transparent',
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 1,
+              borderDash: [3,3]
+            }
+          ].concat(legendDatasets)
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 1,
+          animation: false,
+          plugins: {
+            legend: {
+              display: true,
+              labels: {
+                color: '#999', font:{size:10}, boxWidth:12, padding:8,
+                filter: function(item){ return item.datasetIndex >= 1; }
+              }
+            },
+            tooltip: {
+              mode: 'index', intersect: false,
+              callbacks: {
+                label: function(c){
+                  if(c.datasetIndex===0){
+                    const dir = n(rows[c.dataIndex]&&rows[c.dataIndex].dir_vent);
+                    return 'Vent: '+c.parsed.y.toFixed(1)+' km/h ('+dirToLabel(dir)+')';
+                  }
+                  if(c.datasetIndex===1) return 'Rafale: '+c.parsed.y.toFixed(1)+' km/h';
+                  return null;
+                }
+              }
+            }
+          },
+          scales: {
+            x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},
+            y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true}
+          }
+        },
+        plugins: [coloredFillPlugin]
+      });
+    })();
 
     makeChart('cSoleil','bar',labels,[
       {label:'Ensoleillement',data:rows.map(r=>n(r.soleil)>150?n(r.soleil):null),backgroundColor:'rgba(245,197,24,0.5)',borderRadius:0,yAxisID:'y'},
       {label:'W/m²',data:rows.map(r=>n(r.soleil)),type:'line',borderColor:'#e8a020',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,yAxisID:'y'}
     ],{y0:true});
 
-  } catch(e) {
+    makeChart('cHumidite','line',labels,[
+      {label:'Humidité',data:rows.map(r=>n(r.humidite)),borderColor:'#4a9edd',backgroundColor:'rgba(74,158,221,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}
+    ],{y0:true});
+
+    makeChart('cPression','line',labels,[
+      {label:'Pression',data:rows.map(r=>n(r.pression)),borderColor:'#764ba2',backgroundColor:'rgba(118,75,162,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}
+    ],{y0:false});
+
+
+    } catch(e) {
     document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">⚠️ ${e.message}</div></div>`;
   }
 }
@@ -544,21 +695,6 @@ loadData();
 setInterval(loadData, 5*60*1000);
 </script>
 
-<nav style="position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #eee;display:flex;z-index:50;">
-  <a href="index.html" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0;text-decoration:none;color:#667eea;font-size:10px;gap:3px;font-weight:600;">
-    <span style="font-size:20px;">🌤️</span>Aujourd'hui
-  </a>
-  <a href="detail.html" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0;text-decoration:none;color:#aaa;font-size:10px;gap:3px;">
-    <span style="font-size:20px;">📅</span>Journée
-  </a>
-  <a href="bilan.html" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0;text-decoration:none;color:#aaa;font-size:10px;gap:3px;">
-    <span style="font-size:20px;">📆</span>Bilan
-  </a>
-  <a href="records.html" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0;text-decoration:none;color:#aaa;font-size:10px;gap:3px;">
-    <span style="font-size:20px;">🏆</span>Records
-  </a>
-</nav>
-<div style="height:64px;"></div>
 <nav>
   <a href="index.html" class="active"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
   <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>

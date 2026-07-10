@@ -77,21 +77,6 @@ nav a.active { color: #11998e; font-weight: 600; }
   <div class="year-picker-label">Années</div>
 </div>
 
-<div class="month-picker" id="monthPicker">
-  <div class="month-picker-header" onclick="toggleMonthPicker()">
-    <span>Mois</span>
-    <em id="monthPickerLabel">Tous les mois ▼</em>
-  </div>
-  <div class="month-picker-body" id="monthPickerBody">
-    <div class="month-shortcuts">
-      <button class="month-shortcut" onclick="selectAllMonths()">Tous</button>
-      <button class="month-shortcut" onclick="selectMonths([12,1,2])">Hiver</button>
-      <button class="month-shortcut" onclick="selectMonths([3,4,5])">Printemps</button>
-      <button class="month-shortcut" onclick="selectMonths([6,7,8])">Été</button>
-      <button class="month-shortcut" onclick="selectMonths([9,10,11])">Automne</button>
-    </div>
-  </div>
-</div>
 <div id="content"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
 
 <nav>
@@ -122,6 +107,7 @@ function toggleMonthPicker(){
 
 function buildMonthPickerBody(){
   const body = document.getElementById('monthPickerBody');
+  if(!body) return;
   const shortcuts = body.querySelector('.month-shortcuts');
   // Supprimer les checkboxes existantes
   Array.from(body.querySelectorAll('.month-cb')).forEach(function(el){el.remove();});
@@ -471,6 +457,17 @@ function renderData(){
     +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
     +'<div class="section-header">📈 Cumul précipitations annuel</div>'
     +'<div class="chart-card"><canvas id="cCumul" style="height:500px;"></canvas></div>'
+    +'<div class="month-picker" id="monthPicker" style="margin:8px 16px 0;">'
+    +'<div class="month-picker-header" onclick="toggleMonthPicker()">'
+    +'<span>🗓️ Filtrer par mois</span><em id="monthPickerLabel">Tous les mois ▼</em></div>'
+    +'<div class="month-picker-body" id="monthPickerBody">'
+    +'<div class="month-shortcuts">'
+    +'<button class="month-shortcut" onclick="selectAllMonths()">Tous</button>'
+    +'<button class="month-shortcut" onclick="selectMonths([12,1,2])">Hiver</button>'
+    +'<button class="month-shortcut" onclick="selectMonths([3,4,5])">Printemps</button>'
+    +'<button class="month-shortcut" onclick="selectMonths([6,7,8])">Été</button>'
+    +'<button class="month-shortcut" onclick="selectMonths([9,10,11])">Automne</button>'
+    +'</div></div></div>'
     +'<div class="section-header">📋 Détail par mois</div>'
     +'<div class="table-section"><div class="table-card"><div class="table-wrap">'
     +'<table><thead><tr>'
@@ -536,6 +533,7 @@ function renderData(){
   });
   // Lancer le cumul si déjà chargé — après injection DOM
   if(cachedCumulRows) setTimeout(renderCumulChart, 0);
+  buildMonthPickerBody();
 }
 
 function renderCumulChart(){

@@ -299,7 +299,7 @@ async function loadData() {
 
   const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal) AS heure_temp_max, FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal) AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal) AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal) AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal) AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal) AS heure_vent_max, FORMAT_TIMESTAMP('%H:%M', pr_max.obsTimeLocal) AS heure_pression_max, FORMAT_TIMESTAMP('%H:%M', pr_min.obsTimeLocal) AS heure_pression_min FROM (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY pressureMax DESC LIMIT 1) pr_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY pressureMin ASC LIMIT 1) pr_min";
 
-  const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal ASC";
+  const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, pressureMax AS pression, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal ASC";
 
   try {
     const token = await getToken();
@@ -342,12 +342,14 @@ async function loadData() {
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon pink">💦</div><div class="kpi-card-title">Humidité</div></div><div class="kpi-card-value">'+fmt(k.humidite_moy,0)+'<span class="kpi-card-unit">%</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>↑ '+fmt(k.humidite_max,0)+'%</b><span>'+(ex.heure_hum_max||'—')+'</span></div><div class="kpi-sub-item"><b>↓ '+fmt(k.humidite_min,0)+'%</b><span>'+(ex.heure_hum_min||'—')+'</span></div></div></div>'
         +'<div class="kpi-card full"><div class="kpi-card-header"><div class="kpi-icon purple">🔵</div><div class="kpi-card-title">Pression</div></div><div class="kpi-card-value">'+fmt(k.pression_moy,0)+'<span class="kpi-card-unit"> hPa</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>↑ '+fmt(k.pression_max,0)+' hPa</b><span>'+(ex.heure_pression_max||'—')+'</span></div><div class="kpi-sub-item"><b>↓ '+fmt(k.pression_min,0)+' hPa</b><span>'+(ex.heure_pression_min||'—')+'</span></div></div></div>'
       +'</div>'
+      + buildHourlyTable(rows)
       +'<div class="section-header">Graphiques</div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div><canvas id="cTemp"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🌧️ Pluie</span><em>mm</em></div><canvas id="cPluie"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div><canvas id="cVent"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>☀️ Rayonnement</span><em>W/m²</em></div><canvas id="cSoleil"></canvas></div>'
-      + buildHourlyTable(rows)
+      +'<div class="chart-card"><div class="chart-card-title"><span>💦 Humidité</span><em>%</em></div><canvas id="cHumidite"></canvas></div>'
+      +'<div class="chart-card"><div class="chart-card-title"><span>🔵 Pression</span><em>hPa</em></div><canvas id="cPression"></canvas></div>'
       +'<div class="pb"></div>';
 
     makeChart('cTemp','line',labels,[
@@ -376,15 +378,79 @@ async function loadData() {
       {label:'Cumul (mm)',data:pRunningTotal,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2}
     ],{y0:true});
 
-    makeChart('cVent','line',labels,[
-      {label:'Moy',data:rows.map(function(r){return n(r.vent);}),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
-      {label:'Rafale',data:rows.map(function(r){return n(r.rafale);}),borderColor:'#ccc',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
-    ],{y0:true});
+    // Graphique vent avec surface colorée par direction (16 secteurs)
+    (function(){
+      const DIR16_COLORS = [
+        'rgba(102,126,234,0.55)','rgba(140,140,220,0.55)','rgba(180,160,200,0.55)','rgba(210,180,150,0.55)',
+        'rgba(245,197,24,0.55)','rgba(240,170,30,0.55)','rgba(235,140,60,0.55)','rgba(235,110,70,0.55)',
+        'rgba(232,96,76,0.55)','rgba(200,90,100,0.55)','rgba(160,100,130,0.55)','rgba(100,120,160,0.55)',
+        'rgba(29,158,117,0.55)','rgba(50,150,150,0.55)','rgba(70,140,190,0.55)','rgba(90,130,215,0.55)'
+      ];
+      const DIR16_LABELS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+      function dirToColor(deg){if(deg===null)return 'rgba(200,200,200,0.3)';return DIR16_COLORS[Math.round(deg/22.5)%16];}
+      function dirToLabel(deg){if(deg===null)return '—';return DIR16_LABELS[Math.round(deg/22.5)%16];}
+      const coloredFillPlugin = {
+        id:'coloredFill',
+        beforeDatasetsDraw:function(chart){
+          const meta=chart.getDatasetMeta(0);
+          const {ctx,chartArea:{bottom},scales:{x,y}}=chart;
+          const dirData=rows.map(function(r){return n(r.dir_vent);});
+          ctx.save();
+          ctx.beginPath();ctx.rect(chart.chartArea.left,chart.chartArea.top,chart.chartArea.width,chart.chartArea.height);ctx.clip();
+          for(let i=0;i<meta.data.length-1;i++){
+            const p1=meta.data[i],p2=meta.data[i+1];
+            if(!p1||!p2)continue;
+            ctx.beginPath();ctx.moveTo(p1.x,bottom);ctx.lineTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p2.x,bottom);ctx.closePath();
+            ctx.fillStyle=dirToColor(dirData[i]);ctx.fill();
+          }
+          ctx.restore();
+        }
+      };
+      const legendDatasets=[
+        {label:'Nord', borderColor:'rgba(102,126,234,0.8)',backgroundColor:'rgba(102,126,234,0.8)',data:[],pointRadius:0,borderWidth:8,type:'line'},
+        {label:'Est',  borderColor:'rgba(245,197,24,0.8)', backgroundColor:'rgba(245,197,24,0.8)', data:[],pointRadius:0,borderWidth:8,type:'line'},
+        {label:'Sud',  borderColor:'rgba(232,96,76,0.8)',  backgroundColor:'rgba(232,96,76,0.8)',  data:[],pointRadius:0,borderWidth:8,type:'line'},
+        {label:'Ouest',borderColor:'rgba(29,158,117,0.8)',backgroundColor:'rgba(29,158,117,0.8)', data:[],pointRadius:0,borderWidth:8,type:'line'}
+      ];
+      if(charts['cVent'])charts['cVent'].destroy();
+      const ctx=document.getElementById('cVent').getContext('2d');
+      charts['cVent']=new Chart(ctx,{
+        type:'line',
+        data:{labels:labels,datasets:[
+          {label:'Vent moy.',data:rows.map(function(r){return n(r.vent);}),borderColor:'rgba(30,30,30,0.7)',backgroundColor:'transparent',fill:false,tension:0.3,pointRadius:0,borderWidth:1.5},
+          {label:'Rafale',data:rows.map(function(r){return n(r.rafale);}),borderColor:'rgba(150,150,150,0.6)',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,borderDash:[3,3]}
+        ].concat(legendDatasets)},
+        options:{
+          responsive:true,maintainAspectRatio:true,aspectRatio:1,animation:false,
+          plugins:{
+            legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:12,padding:8,filter:function(item){return item.datasetIndex>=1;}}},
+            tooltip:{mode:'index',intersect:false,callbacks:{label:function(c){
+              if(c.datasetIndex===0){const dir=n(rows[c.dataIndex]&&rows[c.dataIndex].dir_vent);return 'Vent: '+c.parsed.y.toFixed(1)+' km/h ('+dirToLabel(dir)+')';}
+              if(c.datasetIndex===1)return 'Rafale: '+c.parsed.y.toFixed(1)+' km/h';
+              return null;
+            }}}
+          },
+          scales:{
+            x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:7},grid:{color:'rgba(0,0,0,0.03)'}},
+            y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true}
+          }
+        },
+        plugins:[coloredFillPlugin]
+      });
+    })();
 
     makeChart('cSoleil','bar',labels,[
       {label:'Ensoleillement',data:rows.map(function(r){return n(r.soleil)>150?n(r.soleil):null;}),backgroundColor:'rgba(245,197,24,0.5)',borderRadius:0,yAxisID:'y'},
       {label:'W/m²',data:rows.map(function(r){return n(r.soleil);}),type:'line',borderColor:'#e8a020',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1,yAxisID:'y'}
     ],{y0:true});
+
+    makeChart('cHumidite','line',labels,[
+      {label:'Humidité',data:rows.map(function(r){return n(r.humidite);}),borderColor:'#4a9edd',backgroundColor:'rgba(74,158,221,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}
+    ],{y0:true});
+
+    makeChart('cPression','line',labels,[
+      {label:'Pression',data:rows.map(function(r){return n(r.pression);}),borderColor:'#764ba2',backgroundColor:'rgba(118,75,162,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}
+    ],{y0:false});
 
   } catch(e) {
     document.getElementById('content').innerHTML = '<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
