@@ -23,6 +23,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .main-temp-value { font-size: 48px; font-weight: 300; color: #1a1a2e; line-height: 1; }
 .main-temp-value sup { font-size: 20px; font-weight: 400; color: #888; vertical-align: super; }
 .main-temp-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.normales-row { margin-top: 6px; font-size: 10px; color: #bbb; line-height: 1.8; }
 .meta-item { font-size: 11px; color: #aaa; line-height: 1.5; }
 .meta-item b { display: block; font-size: 13px; font-weight: 600; color: #333; }
 .meta-item span { font-size: 10px; color: #bbb; }
@@ -98,6 +99,21 @@ const SA = {
   project_id: "mystic-aileron-471209-p6",
   client_email: "app-perso@mystic-aileron-471209-p6.iam.gserviceaccount.com",
   private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBjetWxhjhSL4F\nWqQzif3uQoHH8tFceFmKHX0zg8qy9XZjSmpZApkBL1m/UX3VoHEehPd7aLMuC86j\nzvSfvv3kh1fZBzXtW6OGmlDgMLIIFzXJfd9efe24iX7CzGTuQPa6MG+/kg+KlKUT\nXvTOpT8pRLCcIDqkUGpCT0QGERCbQ0oueQXRA9JwXyOfJoukODhWqsgMPEoIt+xV\nFt3WqQQXAeyvHOP6oA4mSJisk7ShrVXKN9R4ik1LO/jXlRlEH2MH3mYbalSHyeic\n/tHkQjJ6wP61NjhQnInqWo7Tny4qtrPwpU3kj+Y7uoDWAiVYIAsLLR62h7YAPNEZ\noD6OFZkvAgMBAAECggEADPR1TIUM1ENcqJoVBHgXfXOJITtw5OoPQC3SG/kVv52r\nU2D/Nj70w74KGUKYlAxdlefbcrCi0ZGrvo4TFIAhmUKv0BBp/R2Vl+RLRn4r5Fu9\nV2Or6DSwjRny2JH6rXG+sd6dFCrwDFv/oojIBO7Nh/MXiROlKStSuWZ5zJgmzuV3\nlW63l7RRLujmr5Z4kaNK8x1EMmhNHg7FvBLJ7MdHOXQh8zPE+1YC9laBqQwZaEvJ\nq51hNKTWFhB5pg4SqL+0pbgzQ4Wg58grIhRaw6z9YYwgFPc59YSRB5xUCfTUt6Hg\nILw9O3Z5CNRKBLzA6Q6jIyzbLEyOGcZTy0Sq2AJr+QKBgQD7E8KPh96aykXYxnvz\nc7jd6Irb3H0Dyd1P2kKb9C6FWWW+XU4wcOws49WMBAp03KJm/h2rEvbzXk1u1eHL\n/SwVhRuZkrTluIitvyvC3TZKCXZGLVKhbRq1TKuqoV2V1vV5Re29E0abliRWhFoP\n2ZFGrIMngvck/knyV63b3U82SQKBgQDFWW7hh0abOnn2KlVR8h4l6Sp/N3Nu1//U\nE9mY9IeCZ2PlwefnCQRuAW/tX6/FGerOne+RmUfoCkEqaOYQNoAiNhzhRLIF4cey\nyJxpsHuFFLssuNX3brm8y1vdQ5FdPSnp1KC/nHUt23bGqo2yO8pBL3rCsl6diTRJ\n5xEMMHtztwKBgDigi0gN79HffwNWOMx+tBowgWj3AKcjFywUYOOFnhxrPjxCFQlt\n3oZ9WEN9AdK7lFFATPaxj0ryYOp3iLaWQiQUYlYvtWb+SK1PKZKIi98E5U0Mmc9Y\nqSZsxWb1gAL0eWbBs83qFAmxQj7VGO7sNgzHickWi6EnTQxAZDDraBspAoGBAIS7\nzS8VHDElmIgwGuidzxcyhym/cv03fFL48t7EgSv9PBx5We9zii4u+0gNlpwb/Wjw\nowQrs0hnNUNAAJUhAvd/q9b7rDz2iak+8qzHTZzJv8apnwfnyjcoE+ZzHp82ly01\nnNSjd9DbDj0600jwm+1R8OBoteiBMtEN/9JR/YZrAoGBANo/HPFk8NnGUINr4bSW\nosfCWI+R6Rq0sNZZE0vu8xPGQA4rEum3fzxTJ66Cshrc2F4ImNjCnN5UhzElMhcI\nSYIXajR5XLsO86ZI8UvFCkI0WuKi5Jx1H9oXOe0DjdOlMR1jnbfEJB8sq3zfb6+o\nvyfjf+yZS/InhZSVb7SclMU+\n-----END PRIVATE KEY-----\n"
+};
+
+const NORMALES_RENNES = {
+  1: {tmin: 3.3, tmax: 9.2, tmoy: 6.0},
+  2: {tmin: 2.9, tmax: 10.3, tmoy: 6.3},
+  3: {tmin: 4.5, tmax: 13.2, tmoy: 8.5},
+  4: {tmin: 6.0, tmax: 16.0, tmoy: 10.7},
+  5: {tmin: 9.3, tmax: 19.3, tmoy: 14.1},
+  6: {tmin: 12.1, tmax: 22.6, tmoy: 17.1},
+  7: {tmin: 13.7, tmax: 24.8, tmoy: 18.9},
+  8: {tmin: 13.7, tmax: 24.8, tmoy: 18.8},
+  9: {tmin: 11.4, tmax: 21.9, tmoy: 16.2},
+  10: {tmin: 9.3, tmax: 17.2, tmoy: 12.8},
+  11: {tmin: 5.9, tmax: 12.5, tmoy: 8.9},
+  12: {tmin: 3.6, tmax: 9.6, tmoy: 6.4},
 };
 
 let charts = {};
@@ -428,6 +444,20 @@ async function loadData() {
     const now = new Date();
     const dateStr = now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
 
+    // Calcul écarts vs normales Rennes
+    const _mois = new Date().getMonth()+1;
+    const _nr = NORMALES_RENNES[_mois];
+    function _ecart(val, ref) {
+      if(val===null||val===undefined||!isFinite(val)) return '';
+      const d = parseFloat((val-ref).toFixed(1));
+      const sign = d>=0?'+':'';
+      const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'#999';
+      return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+sign+d+'°</span>';
+    }
+    const _ecartMax = _ecart(n(k.temp_max), _nr.tmax);
+    const _ecartMin = _ecart(n(k.temp_min), _nr.tmin);
+    const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
+
     document.getElementById('app').innerHTML = `
       <div class="header">
         <div class="header-top">
@@ -445,10 +475,13 @@ async function loadData() {
           <div class="main-temp-label">Température actuelle</div>
           <div class="main-temp-value">${fmt(tempActuelle)}<sup>°C</sup></div>
           <div class="main-temp-meta">
-            <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C</b><span>${ex.heure_temp_max||'—'}</span></div>
-            <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C</b><span>${ex.heure_temp_min||'—'}</span></div>
-            <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C</b></div>
+            <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C${_ecartMax}</b><span>${ex.heure_temp_max||'—'}</span></div>
+            <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C${_ecartMin}</b><span>${ex.heure_temp_min||'—'}</span></div>
+            <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C${_ecartMoy}</b></div>
             <div class="meta-item"><b>Δ ${delta}°C</b></div>
+          </div>
+          <div style="font-size:9px;color:#ccc;margin-top:5px;line-height:1.4;">
+            Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)
           </div>
         </div>
         <div class="main-temp-icon">${tempIcon(tempActuelle)}</div>
@@ -687,6 +720,20 @@ async function loadData() {
 
 
     } catch(e) {
+    // Calcul écarts vs normales Rennes
+    const _mois = new Date().getMonth()+1;
+    const _nr = NORMALES_RENNES[_mois];
+    function _ecart(val, ref) {
+      if(val===null||val===undefined||!isFinite(val)) return '';
+      const d = parseFloat((val-ref).toFixed(1));
+      const sign = d>=0?'+':'';
+      const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'#999';
+      return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+sign+d+'°</span>';
+    }
+    const _ecartMax = _ecart(n(k.temp_max), _nr.tmax);
+    const _ecartMin = _ecart(n(k.temp_min), _nr.tmin);
+    const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
+
     document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">⚠️ ${e.message}</div></div>`;
   }
 }
