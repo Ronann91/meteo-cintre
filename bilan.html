@@ -75,7 +75,9 @@ nav a.active { color: #667eea; font-weight: 600; }
       <div class="top-bar-title">📆 Bilan mensuel</div>
     </div>
     <div class="top-bar-controls">
-      <input type="month" id="monthPicker" onchange="loadData()">
+      <input type="date" id="dateStart" onchange="loadData()" style="border:none;background:rgba(255,255,255,0.2);color:white;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">
+      <span style="color:white;opacity:0.7;font-size:11px;">→</span>
+      <input type="date" id="dateEnd" onchange="loadData()" style="border:none;background:rgba(255,255,255,0.2);color:white;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">
       <button class="refresh-btn" onclick="loadData()">↻</button>
     </div>
   </div>
@@ -248,18 +250,20 @@ function drawWindRose(canvas, n_pct, s_pct, e_pct, o_pct){
   });
 }
 
-function getSelectedMonth(){
-  return document.getElementById('monthPicker').value;
+function getSelectedRange(){
+  const s = document.getElementById('dateStart').value;
+  const e = document.getElementById('dateEnd').value;
+  return {start:s, end:e};
 }
 
 async function loadData(){
-  const m = getSelectedMonth();
-  if(!m)return;
+  const {start,end} = getSelectedRange();
+  if(!start||!end)return;
   document.getElementById('content').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
-  const [year,month] = m.split('-');
-  const dateLabel = new Date(parseInt(year),parseInt(month)-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-  document.getElementById('top-sub').textContent=dateLabel.charAt(0).toUpperCase()+dateLabel.slice(1);
-  const W = "WHERE FORMAT_DATE('%Y-%m', DATE(obsTimeLocal)) = '"+m+"'";
+  const labelStart = new Date(start+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  const labelEnd = new Date(end+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('top-sub').textContent=labelStart+' → '+labelEnd;
+  const W = "WHERE DATE(obsTimeLocal) BETWEEN '"+start+"' AND '"+end+"'";
 
   // ---- KPI mensuel ----
   const qKpi = `SELECT
@@ -302,6 +306,7 @@ async function loadData(){
     COUNTIF(t_max >= 25) AS nb_sup25,
     COUNTIF(t_max >= 30) AS nb_sup30,
     COUNTIF(t_max >= 35) AS nb_sup35,
+    COUNTIF(t_min >= 19) AS nb_nuit_chaude,
     COUNTIF(pluie >= 1) AS nb_pluie1,
     COUNTIF(pluie >= 10) AS nb_pluie10
   FROM (
@@ -344,6 +349,17 @@ async function loadData(){
     }
 
     const nbJours = days.length;
+    // Normale pondérée : moyenne des normales journalières de chaque jour de la plage
+    const normMoyRef = (function(){
+      let sum = 0, count = 0;
+      days.forEach(function(r){
+        const d = new Date(r.jour+'T12:00:00');
+        const key = pad(d.getMonth()+1)+'-'+pad(d.getDate());
+        const nr = NORM_DAILY[key];
+        if(nr && nr.tm !== null){ sum += nr.tm; count++; }
+      });
+      return count > 0 ? sum/count : null;
+    })();
     const ensMoyParJour = n(k.ens_total)!==null ? n(k.ens_total)/nbJours : null;
     const ensHH = Math.floor(ensMoyParJour||0);
     const ensMM = Math.round(((ensMoyParJour||0)-ensHH)*60);
@@ -396,19 +412,19 @@ async function loadData(){
         +'</div>'
         +'<div class="kpi-card">'
           +'<div class="kpi-card-header"><div class="kpi-icon purple">📊</div><div class="kpi-card-title">Moyenne du mois</div></div>'
-          +'<div class="kpi-card-value">'+fmt(n(k.temp_moy))+'<span class="kpi-card-unit">°C</span>'+ecartNorm(n(k.temp_moy),NORMALES_RENNES[parseInt(m.split("-")[1])].tmoy)+'</div>'
+          +'<div class="kpi-card-value">'+fmt(n(k.temp_moy))+'<span class="kpi-card-unit">°C</span>'+ecartNorm(n(k.temp_moy),normMoyRef)+'</div>'
           +'<div class="kpi-sub-single">Amplitude <b>'+fmt(n(k.amplitude))+'°C</b></div>'
-          +'<div style="font-size:9px;color:#ccc;margin-top:4px;">vs Rennes-St-Jacques 1991–2020</div>'
+          +'<div style="font-size:9px;color:#ccc;margin-top:4px;">Écart sur la température moyenne quotidienne vs normales Rennes-St-Jacques 1991–2020</div>'
         +'</div>'
         +'<div class="kpi-card">'
           +'<div class="kpi-card-header"><div class="kpi-icon amber">🌡️</div><div class="kpi-card-title">Seuils journaliers</div></div>'
-          +'<div class="kpi-sub-grid-4" style="margin-top:4px;">'
-            +'<div class="kpi-sub-item"><b>'+( s.nb_gel||0)+'j</b><span>Gel</span></div>'
-            +'<div class="kpi-sub-item"><b>'+(s.nb_sup20||0)+'j</b><span>≥20°</span></div>'
+          +'<div class="kpi-sub-single" style="margin-top:6px;">Gel (Tmin&lt;0°) : <b>'+(s.nb_gel||0)+' j</b></div>'
+          +'<div class="kpi-sub-grid-4" style="margin-top:6px;">'
             +'<div class="kpi-sub-item"><b>'+(s.nb_sup25||0)+'j</b><span>≥25°</span></div>'
             +'<div class="kpi-sub-item"><b>'+(s.nb_sup30||0)+'j</b><span>≥30°</span></div>'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_sup35||0)+'j</b><span>≥35°</span></div>'
+            +'<div class="kpi-sub-item"><b>'+(s.nb_nuit_chaude||0)+'j</b><span>Nuit≥19°</span></div>'
           +'</div>'
-          +'<div class="kpi-sub-single" style="margin-top:6px;">Jours ≥35° : <b>'+(s.nb_sup35||0)+'</b></div>'
         +'</div>'
       +'</div>'
       // ---- PLUIE ----
@@ -418,7 +434,7 @@ async function loadData(){
           +'<div class="kpi-card-header"><div class="kpi-icon blue">💧</div><div class="kpi-card-title">Total mensuel</div></div>'
           +'<div class="kpi-card-value">'+fmt(n(k.pluie_total),1)+'<span class="kpi-card-unit"> mm</span></div>'
           +'<div class="kpi-sub-grid">'
-            +'<div class="kpi-sub-item"><b>'+(s.nb_pluie1||0)+' j</b><span>≥ 1 mm</span></div>'
+            +'<div class="kpi-sub-item"><b>'+((s.nb_pluie1||0)-(s.nb_pluie10||0))+' j</b><span>1-10 mm</span></div>'
             +'<div class="kpi-sub-item"><b>'+(s.nb_pluie10||0)+' j</b><span>≥ 10 mm</span></div>'
           +'</div>'
         +'</div>'
@@ -458,7 +474,7 @@ async function loadData(){
       // ---- GRAPHIQUES ----
       +'<div class="section-header">Graphiques</div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🌡️ Température</span><em>°C</em></div><canvas id="cTemp"></canvas></div>'
-      +'<div class="chart-card"><div class="chart-card-title"><span>🌡️ Écart vs normales journalières</span><em>°C</em></div><canvas id="cTempNorm"></canvas></div>'
+      +'<div class="chart-card"><div class="chart-card-title"><span>🌡️ Écart vs normales journalières</span><em>Tmoy quotidienne — Rennes-St-Jacques 1991–2020</em></div><canvas id="cTempNorm"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🌧️ Précipitations</span><em>mm</em></div><canvas id="cPluie"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div><canvas id="cVent"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>☀️ Ensoleillement</span><em>h/jour</em></div><canvas id="cSoleil"></canvas></div>'
@@ -600,14 +616,14 @@ async function loadData(){
     // Graphique pluie
     makeChart('cPluie','bar',labels,[
       {label:'Précip. (mm)',data:days.map(function(r){return n(r.pluie);}),backgroundColor:'rgba(74,158,221,0.7)',borderRadius:2,yAxisID:'y'},
-      {label:'Intensité max (mm/h)',data:days.map(function(r){return n(r.intensite_max);}),backgroundColor:'rgba(232,96,76,0.5)',borderRadius:2,yAxisID:'y'},
-      {label:'Cumul (mm)',data:pluieCumul,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2,yAxisID:'y2'}
+      {label:'Intensité max (mm/h)',data:days.map(function(r){return n(r.intensite_max)>0?n(r.intensite_max):null;}),type:'scatter',borderColor:'rgba(0,0,0,0)',backgroundColor:'#e8604c',pointRadius:5,pointStyle:'circle',yAxisID:'y'},
+      {label:'Cumul (mm)',data:pluieCumul,type:'line',borderColor:'#1a1a2e',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2,yAxisID:'y2'}
     ],{y0:true,y2:true});
 
     // Graphique vent
     makeChart('cVent','line',labels,[
-      {label:'Moy',data:days.map(function(r){return n(r.vent_moy);}),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2,borderWidth:2},
-      {label:'Rafale max',data:days.map(function(r){return n(r.rafale_max);}),borderColor:'#ccc',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[3,3]}
+      {label:'Moy (km/h)',data:days.map(function(r){return n(r.vent_moy);}),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2,borderWidth:2},
+      {label:'Rafale max (km/h)',data:days.map(function(r){return n(r.rafale_max);}),borderColor:'#aaa',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[3,3]}
     ],{y0:true});
 
     // Graphique ensoleillement
@@ -622,10 +638,11 @@ async function loadData(){
 
 // Init : mois précédent
 (function(){
-  const dp = document.getElementById('monthPicker');
-  const d = new Date();
-  d.setMonth(d.getMonth()-1);
-  dp.value = d.getFullYear()+'-'+pad(d.getMonth()+1);
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+  document.getElementById('dateStart').value = firstDay.getFullYear()+'-'+pad(firstDay.getMonth()+1)+'-01';
+  document.getElementById('dateEnd').value = lastDay.getFullYear()+'-'+pad(lastDay.getMonth()+1)+'-'+pad(lastDay.getDate());
 })();
 
 loadData();

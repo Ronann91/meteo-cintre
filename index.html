@@ -561,10 +561,80 @@ async function loadData() {
       {label:'Moy',data:rows.map(r=>n(r.tempMoyCumul)),borderColor:'#bbb',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]}
     ],{y0:false});
 
-    makeChart('cPluie','bar',labels,[
-      {label:'Précip.',data:rows.map(r=>n(r.pluie)),backgroundColor:'rgba(74,158,221,0.65)',borderRadius:2},
-      {label:'Intensité',data:rows.map(r=>n(r.pluie_rate)),type:'line',borderColor:'#1a6aaa',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:1.5}
-    ]);
+    // Graphique pluie : barres horaires + cumul courbe noire + intensité max points
+    (function(){
+      const byHour = {};
+      rows.forEach(function(r){
+        const h = r.heure ? r.heure.substring(0,2) : null;
+        if(h===null) return;
+        if(!byHour[h]) byHour[h] = {pluie:0, intensite:0};
+        byHour[h].pluie += n(r.pluie)||0;
+        byHour[h].intensite = Math.max(byHour[h].intensite, n(r.pluie_rate)||0);
+      });
+      const heures = Object.keys(byHour).sort();
+      const labelsH = heures.map(function(h){ return h+'h'; });
+      const pluieData = heures.map(function(h){ return parseFloat(byHour[h].pluie.toFixed(2)); });
+      let cumul = 0;
+      const cumulData = heures.map(function(h){ cumul += byHour[h].pluie; return parseFloat(cumul.toFixed(2)); });
+      const intensiteData = heures.map(function(h){ return byHour[h].intensite > 0 ? byHour[h].intensite : null; });
+
+      if(charts['cPluie']) charts['cPluie'].destroy();
+      const ctx = document.getElementById('cPluie').getContext('2d');
+      charts['cPluie'] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labelsH, datasets: [
+          {
+            label: 'Précip. (mm)',
+            data: pluieData,
+            backgroundColor: 'rgba(74,158,221,0.6)',
+            borderColor: 'rgba(74,158,221,0.8)',
+            borderWidth: 1,
+            borderRadius: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Cumul (mm)',
+            data: cumulData,
+            type: 'line',
+            borderColor: '#1a1a2e',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2,
+            yAxisID: 'yCumul'
+          },
+          {
+            label: 'Intensité max (mm/h)',
+            data: intensiteData,
+            type: 'scatter',
+            borderColor: 'rgba(0,0,0,0)',
+            backgroundColor: '#e8604c',
+            pointRadius: 5,
+            pointStyle: 'circle',
+            yAxisID: 'y'
+          }
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: true, aspectRatio: 1, animation: false,
+          plugins: {
+            legend: {display: true, labels: {color:'#999', font:{size:10}, boxWidth:10, padding:6}},
+            tooltip: {mode:'index', intersect:false, callbacks:{
+              label: function(c){
+                if(c.datasetIndex===0) return 'Précip.: '+c.parsed.y.toFixed(2)+' mm';
+                if(c.datasetIndex===1) return 'Cumul: '+c.parsed.y.toFixed(2)+' mm';
+                if(c.parsed.y===null) return null;
+                return 'Intensité max: '+c.parsed.y.toFixed(1)+' mm/h';
+              }
+            }}
+          },
+          scales: {
+            x: {ticks:{color:'#ccc',font:{size:9},maxTicksLimit:12}, grid:{color:'rgba(0,0,0,0.03)'}},
+            y: {ticks:{color:'#4a9edd',font:{size:9}}, grid:{color:'rgba(0,0,0,0.03)'}, beginAtZero:true, title:{display:true,text:'mm / mm/h',color:'#4a9edd',font:{size:9}}},
+            yCumul: {position:'right', ticks:{color:'#1a1a2e',font:{size:9}}, grid:{drawOnChartArea:false}, beginAtZero:true, title:{display:true,text:'Cumul mm',color:'#1a1a2e',font:{size:9}}}
+          }
+        }
+      });
+    })();
 
     // Graphique vent avec surface colorée par direction (16 secteurs)
     (function(){
