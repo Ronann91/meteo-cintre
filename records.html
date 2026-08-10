@@ -73,9 +73,11 @@ nav a.active { color: #e8604c; font-weight: 600; }
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="temp" onclick="selectTab('temp')">🌡️ Températures</button>
   <button class="tab-btn" data-tab="precip" onclick="selectTab('precip')">🌧️ Précipitations</button>
+  <button class="tab-btn" data-tab="vent" onclick="selectTab('vent')">💨 Vent</button>
 </div>
 <div class="tab-section active" data-tab="temp" id="tab-temp"></div>
 <div class="tab-section" data-tab="precip" id="tab-precip"></div>
+<div class="tab-section" data-tab="vent" id="tab-vent"></div>
 <div id="content-loading"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
 <nav>
   <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
@@ -182,6 +184,7 @@ async function loadData(){
   document.getElementById('content-loading').innerHTML='<div class="loading"><div class="spinner"></div>Chargement...</div>';
   document.getElementById('tab-temp').innerHTML='';
   document.getElementById('tab-precip').innerHTML='';
+  document.getElementById('tab-vent').innerHTML='';
   document.getElementById('top-sub').textContent=selectedMonth===0?'Tous les mois':'Mois de '+MOIS[selectedMonth];
   const WT = monthWhereT();   // température : sans filtre precipRate
   const WP = monthWhereP();   // précipitations : avec precipRate < 150
@@ -197,12 +200,20 @@ async function loadData(){
   const qIntensiteMax="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,precipRate AS val FROM `meteo_cintre.raw_data_v2`"+WP+" ORDER BY precipRate DESC LIMIT 10";
     const qMoisPluvieux="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY mois ORDER BY total DESC LIMIT 10";
   const qMoisSec="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY mois ORDER BY total ASC LIMIT 10";
+  // ---- Vent ----
+  const qRafaleMaxH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,windgustHigh AS val FROM `meteo_cintre.raw_data_v2`"+WT+" ORDER BY windgustHigh DESC LIMIT 10";
+  const qVentMoyJour="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,AVG(windspeedAvg) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour ORDER BY val DESC LIMIT 10";
+  const qSeuilsVent="SELECT COUNTIF(rafale_max>=50) AS nb_rafale50,COUNTIF(rafale_max>=70) AS nb_rafale70,COUNTIF(vent_moy>=20) AS nb_ventmoy20 FROM (SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(windgustHigh) AS rafale_max,AVG(windspeedAvg) AS vent_moy FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour)";
+  const qMoisVente="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,AVG(windgustHigh) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY mois ORDER BY val DESC LIMIT 10";
+  const qMoisCalme="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,AVG(windgustHigh) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY mois ORDER BY val ASC LIMIT 10";
 
   try{
-    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resMPluvieux,resMSec]=await Promise.all([
+    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resMPluvieux,resMSec,resRafaleH,resVentJour,resSeuilsVent,resMVente,resMCalme]=await Promise.all([
       queryBQ(qDaily),queryBQ(qDailyAll),queryBQ(qTmaxH),queryBQ(qTminH),
       queryBQ(qPrecipJour),queryBQ(qPrecip5min),queryBQ(qIntensiteMax),
-      queryBQ(qMoisPluvieux),queryBQ(qMoisSec)
+      queryBQ(qMoisPluvieux),queryBQ(qMoisSec),
+      queryBQ(qRafaleMaxH),queryBQ(qVentMoyJour),queryBQ(qSeuilsVent),
+      queryBQ(qMoisVente),queryBQ(qMoisCalme)
     ]);
 
     const days=parseRows(res);
@@ -214,6 +225,11 @@ async function loadData(){
     const intensiteMax=parseRows(resInt);
     const moisPluvieux=parseRows(resMPluvieux);
     const moisSec=parseRows(resMSec);
+    const rafaleMaxH=parseRows(resRafaleH);
+    const ventMoyJour=parseRows(resVentJour);
+    const seuilsVent=parseRows(resSeuilsVent)[0]||{};
+    const moisVente=parseRows(resMVente);
+    const moisCalme=parseRows(resMCalme);
 
     if(!days.length){
       document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
@@ -244,10 +260,16 @@ async function loadData(){
     const t10MPluvieux=moisPluvieux.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
     const t10MSec=moisSec.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
 
+    const t10RafaleMax=rafaleMaxH.map(function(r){return {val:n(r.val),jour:r.jour,heure:r.heure};});
+    const t10VentMoyJour=ventMoyJour.map(function(r){return {val:n(r.val),jour:r.jour,heure:null};});
+    const t10MVente=moisVente.map(function(r){return {val:n(r.val),label:fmtMonth(r.mois)};});
+    const t10MCalme=moisCalme.map(function(r){return {val:n(r.val),label:fmtMonth(r.mois)};});
+
     const r0=t10TempMax[0],r1=t10TempMin[0],r2=t10MoyHigh[0],r3=t10MoyLow[0];
     const r4=t10AmpHigh[0],r5=t10AmpLow[0],r6=t10JMinMax[0],r7=t10JMaxMin[0];
     const p0=t10PrecipJour[0],p2=t10Precip5min[0],p3=t10Intensite[0];
     const p4=t10MPluvieux[0],p5=t10MSec[0];
+    const v0=t10RafaleMax[0],v1=t10VentMoyJour[0],v2=t10MVente[0],v3=t10MCalme[0];
 
     const htmlTemp=
       '<div class="section-title">🌡️ Températures extrêmes</div>'
@@ -287,9 +309,28 @@ async function loadData(){
       +recordCardPrecip('🏜️','amber','Mois le plus sec',p5?p5.val:null,'mm',p5?p5.label:'—',t10MSec,null)
       +'</div>';
 
+    const htmlVent=
+      '<div class="section-title">💨 Rafales & vent extrêmes</div>'
+      +'<div class="card-grid">'
+      +recordCard('🌪️','teal','Rafale max absolue',v0?v0.val:null,'km/h',v0?v0.jour:null,v0?v0.heure:null,t10RafaleMax,null,false)
+      +recordCard('💨','blue','Jour le plus venteux (vent moyen)',v1?v1.val:null,'km/h',v1?v1.jour:null,null,t10VentMoyJour,null,false)
+      +'</div>'
+      +'<div class="section-title">📊 Seuils</div>'
+      +'<div class="card-grid">'
+      +'<div class="record-card"><div class="record-header"><div class="record-icon teal">🌬️</div><div class="record-title">Jours avec rafale ≥ 50 km/h</div></div><div class="record-value">'+(seuilsVent.nb_rafale50||0)+'<span class="record-unit"> j</span></div></div>'
+      +'<div class="record-card"><div class="record-header"><div class="record-icon red">🌀</div><div class="record-title">Jours avec rafale ≥ 70 km/h</div></div><div class="record-value">'+(seuilsVent.nb_rafale70||0)+'<span class="record-unit"> j</span></div></div>'
+      +'<div class="record-card"><div class="record-header"><div class="record-icon amber">💨</div><div class="record-title">Jours avec vent moyen ≥ 20 km/h</div></div><div class="record-value">'+(seuilsVent.nb_ventmoy20||0)+'<span class="record-unit"> j</span></div></div>'
+      +'</div>'
+      +'<div class="section-title">📆 Bilan mensuel</div>'
+      +'<div class="card-grid">'
+      +recordCardPrecip('🌬️','teal','Mois le plus venteux',v2?v2.val:null,'km/h',v2?v2.label:'—',t10MVente,null)
+      +recordCardPrecip('🍃','blue','Mois le plus calme',v3?v3.val:null,'km/h',v3?v3.label:'—',t10MCalme,null)
+      +'</div>';
+
     document.getElementById('content-loading').innerHTML='';
     document.getElementById('tab-temp').innerHTML=htmlTemp+'<div class="pb"></div>';
     document.getElementById('tab-precip').innerHTML=htmlPrecip+'<div class="pb"></div>';
+    document.getElementById('tab-vent').innerHTML=htmlVent+'<div class="pb"></div>';
 
   }catch(e){
     document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
