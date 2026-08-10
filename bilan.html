@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Météo — Cintré | Bilan mensuel</title>
+<title>Météo — Cintré | Bilan mensuel (V2)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -88,19 +88,15 @@ nav a.active { color: #667eea; font-weight: 600; }
 <div id="modal-container"></div>
 
 <nav>
-  <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
-  <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
-  <a href="bilan.html" class="active"><span style="font-size:20px;">📆</span>Bilan</a>
-  <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
-  <a href="climat.html"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="index-v2.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
+  <a href="detail-v2.html"><span style="font-size:20px;">📅</span>Journée</a>
+  <a href="bilan-v2.html" class="active"><span style="font-size:20px;">📆</span>Bilan</a>
+  <a href="records-v2.html"><span style="font-size:20px;">🏆</span>Records</a>
+  <a href="climat-v2.html"><span style="font-size:20px;">🌍</span>Climat</a>
 </nav>
 
 <script>
-const SA = {
-  project_id: "mystic-aileron-471209-p6",
-  client_email: "app-perso@mystic-aileron-471209-p6.iam.gserviceaccount.com",
-  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBjetWxhjhSL4F\nWqQzif3uQoHH8tFceFmKHX0zg8qy9XZjSmpZApkBL1m/UX3VoHEehPd7aLMuC86j\nzvSfvv3kh1fZBzXtW6OGmlDgMLIIFzXJfd9efe24iX7CzGTuQPa6MG+/kg+KlKUT\nXvTOpT8pRLCcIDqkUGpCT0QGERCbQ0oueQXRA9JwXyOfJoukODhWqsgMPEoIt+xV\nFt3WqQQXAeyvHOP6oA4mSJisk7ShrVXKN9R4ik1LO/jXlRlEH2MH3mYbalSHyeic\n/tHkQjJ6wP61NjhQnInqWo7Tny4qtrPwpU3kj+Y7uoDWAiVYIAsLLR62h7YAPNEZ\noD6OFZkvAgMBAAECggEADPR1TIUM1ENcqJoVBHgXfXOJITtw5OoPQC3SG/kVv52r\nU2D/Nj70w74KGUKYlAxdlefbcrCi0ZGrvo4TFIAhmUKv0BBp/R2Vl+RLRn4r5Fu9\nV2Or6DSwjRny2JH6rXG+sd6dFCrwDFv/oojIBO7Nh/MXiROlKStSuWZ5zJgmzuV3\nlW63l7RRLujmr5Z4kaNK8x1EMmhNHg7FvBLJ7MdHOXQh8zPE+1YC9laBqQwZaEvJ\nq51hNKTWFhB5pg4SqL+0pbgzQ4Wg58grIhRaw6z9YYwgFPc59YSRB5xUCfTUt6Hg\nILw9O3Z5CNRKBLzA6Q6jIyzbLEyOGcZTy0Sq2AJr+QKBgQD7E8KPh96aykXYxnvz\nc7jd6Irb3H0Dyd1P2kKb9C6FWWW+XU4wcOws49WMBAp03KJm/h2rEvbzXk1u1eHL\n/SwVhRuZkrTluIitvyvC3TZKCXZGLVKhbRq1TKuqoV2V1vV5Re29E0abliRWhFoP\n2ZFGrIMngvck/knyV63b3U82SQKBgQDFWW7hh0abOnn2KlVR8h4l6Sp/N3Nu1//U\nE9mY9IeCZ2PlwefnCQRuAW/tX6/FGerOne+RmUfoCkEqaOYQNoAiNhzhRLIF4cey\nyJxpsHuFFLssuNX3brm8y1vdQ5FdPSnp1KC/nHUt23bGqo2yO8pBL3rCsl6diTRJ\n5xEMMHtztwKBgDigi0gN79HffwNWOMx+tBowgWj3AKcjFywUYOOFnhxrPjxCFQlt\n3oZ9WEN9AdK7lFFATPaxj0ryYOp3iLaWQiQUYlYvtWb+SK1PKZKIi98E5U0Mmc9Y\nqSZsxWb1gAL0eWbBs83qFAmxQj7VGO7sNgzHickWi6EnTQxAZDDraBspAoGBAIS7\nzS8VHDElmIgwGuidzxcyhym/cv03fFL48t7EgSv9PBx5We9zii4u+0gNlpwb/Wjw\nowQrs0hnNUNAAJUhAvd/q9b7rDz2iak+8qzHTZzJv8apnwfnyjcoE+ZzHp82ly01\nnNSjd9DbDj0600jwm+1R8OBoteiBMtEN/9JR/YZrAoGBANo/HPFk8NnGUINr4bSW\nosfCWI+R6Rq0sNZZE0vu8xPGQA4rEum3fzxTJ66Cshrc2F4ImNjCnN5UhzElMhcI\nSYIXajR5XLsO86ZI8UvFCkI0WuKi5Jx1H9oXOe0DjdOlMR1jnbfEJB8sq3zfb6+o\nvyfjf+yZS/InhZSVb7SclMU+\n-----END PRIVATE KEY-----\n"
-};
+const PROXY_URL = "https://europe-west9-mystic-aileron-471209-p6.cloudfunctions.net/query-proxy-meteo";
 
 const NORM_DAILY = {"01-01":{"tn":2.9,"tx":8.8,"tm":5.8},"01-02":{"tn":3.8,"tx":8.9,"tm":6.0},"01-03":{"tn":2.7,"tx":8.9,"tm":5.8},"01-04":{"tn":3.4,"tx":8.8,"tm":6.0},"01-05":{"tn":3.8,"tx":9.3,"tm":6.3},"01-06":{"tn":3.3,"tx":9.1,"tm":6.0},"01-07":{"tn":3.2,"tx":9.2,"tm":6.1},"01-08":{"tn":4.6,"tx":9.4,"tm":6.9},"01-09":{"tn":4.0,"tx":9.8,"tm":6.7},"01-10":{"tn":4.2,"tx":9.7,"tm":6.7},"01-11":{"tn":4.0,"tx":9.4,"tm":6.8},"01-12":{"tn":4.1,"tx":10.0,"tm":6.9},"01-13":{"tn":3.9,"tx":10.2,"tm":6.7},"01-14":{"tn":3.8,"tx":9.0,"tm":6.0},"01-15":{"tn":3.5,"tx":9.6,"tm":6.4},"01-16":{"tn":3.3,"tx":9.6,"tm":6.1},"01-17":{"tn":3.6,"tx":9.3,"tm":6.2},"01-18":{"tn":3.2,"tx":8.8,"tm":6.0},"01-19":{"tn":3.8,"tx":9.5,"tm":6.3},"01-20":{"tn":3.4,"tx":9.2,"tm":6.2},"01-21":{"tn":2.7,"tx":9.1,"tm":6.0},"01-22":{"tn":4.1,"tx":9.6,"tm":6.6},"01-23":{"tn":3.0,"tx":9.0,"tm":5.8},"01-24":{"tn":3.3,"tx":9.5,"tm":5.9},"01-25":{"tn":2.2,"tx":8.6,"tm":5.2},"01-26":{"tn":2.4,"tx":8.4,"tm":5.2},"01-27":{"tn":2.0,"tx":8.5,"tm":5.0},"01-28":{"tn":2.7,"tx":8.5,"tm":5.4},"01-29":{"tn":2.7,"tx":8.3,"tm":5.3},"01-30":{"tn":2.3,"tx":8.9,"tm":5.2},"01-31":{"tn":2.3,"tx":8.8,"tm":5.4},"02-01":{"tn":3.0,"tx":9.1,"tm":5.7},"02-02":{"tn":2.8,"tx":9.0,"tm":5.4},"02-03":{"tn":2.7,"tx":8.9,"tm":5.5},"02-04":{"tn":3.3,"tx":9.5,"tm":6.3},"02-05":{"tn":3.8,"tx":9.7,"tm":6.3},"02-06":{"tn":3.3,"tx":9.2,"tm":6.1},"02-07":{"tn":2.2,"tx":9.6,"tm":5.7},"02-08":{"tn":3.1,"tx":10.0,"tm":6.0},"02-09":{"tn":2.3,"tx":9.5,"tm":5.6},"02-10":{"tn":2.1,"tx":9.8,"tm":5.5},"02-11":{"tn":2.0,"tx":10.2,"tm":5.8},"02-12":{"tn":2.9,"tx":10.4,"tm":6.4},"02-13":{"tn":2.9,"tx":9.9,"tm":6.0},"02-14":{"tn":1.8,"tx":10.5,"tm":5.8},"02-15":{"tn":2.6,"tx":11.1,"tm":6.4},"02-16":{"tn":1.9,"tx":10.3,"tm":5.8},"02-17":{"tn":2.1,"tx":10.6,"tm":6.0},"02-18":{"tn":2.6,"tx":10.5,"tm":6.2},"02-19":{"tn":2.9,"tx":10.1,"tm":6.2},"02-20":{"tn":3.7,"tx":10.9,"tm":6.8},"02-21":{"tn":2.9,"tx":10.2,"tm":6.1},"02-22":{"tn":3.0,"tx":10.8,"tm":6.9},"02-23":{"tn":4.4,"tx":11.4,"tm":7.4},"02-24":{"tn":4.0,"tx":11.5,"tm":7.5},"02-25":{"tn":3.9,"tx":11.0,"tm":7.2},"02-26":{"tn":4.0,"tx":10.8,"tm":6.8},"02-27":{"tn":3.1,"tx":10.5,"tm":6.4},"02-28":{"tn":3.1,"tx":10.5,"tm":6.5},"02-29":{"tn":3.0,"tx":12.0,"tm":7.1},"03-01":{"tn":3.4,"tx":10.6,"tm":6.6},"03-02":{"tn":3.6,"tx":10.8,"tm":6.9},"03-03":{"tn":3.8,"tx":11.4,"tm":7.1},"03-04":{"tn":3.3,"tx":11.1,"tm":6.7},"03-05":{"tn":2.9,"tx":11.4,"tm":6.7},"03-06":{"tn":3.0,"tx":11.7,"tm":7.0},"03-07":{"tn":3.5,"tx":12.7,"tm":7.5},"03-08":{"tn":4.1,"tx":13.1,"tm":8.2},"03-09":{"tn":4.6,"tx":13.5,"tm":8.5},"03-10":{"tn":4.8,"tx":13.5,"tm":8.9},"03-11":{"tn":4.7,"tx":13.9,"tm":8.9},"03-12":{"tn":4.7,"tx":12.8,"tm":8.3},"03-13":{"tn":4.3,"tx":13.0,"tm":8.2},"03-14":{"tn":4.4,"tx":13.5,"tm":8.7},"03-15":{"tn":5.2,"tx":14.2,"tm":9.2},"03-16":{"tn":4.5,"tx":14.1,"tm":8.9},"03-17":{"tn":5.3,"tx":13.9,"tm":9.1},"03-18":{"tn":4.8,"tx":13.7,"tm":8.9},"03-19":{"tn":4.7,"tx":13.2,"tm":8.8},"03-20":{"tn":5.0,"tx":14.0,"tm":9.2},"03-21":{"tn":5.2,"tx":12.9,"tm":8.8},"03-22":{"tn":4.6,"tx":13.1,"tm":8.7},"03-23":{"tn":4.7,"tx":14.3,"tm":9.2},"03-24":{"tn":5.0,"tx":13.8,"tm":9.2},"03-25":{"tn":5.1,"tx":13.8,"tm":9.2},"03-26":{"tn":5.0,"tx":13.8,"tm":9.1},"03-27":{"tn":4.8,"tx":13.7,"tm":9.0},"03-28":{"tn":4.8,"tx":14.2,"tm":9.2},"03-29":{"tn":5.6,"tx":14.1,"tm":9.5},"03-30":{"tn":5.2,"tx":14.4,"tm":9.5},"03-31":{"tn":5.5,"tx":14.7,"tm":9.7},"04-01":{"tn":5.1,"tx":15.4,"tm":10.0},"04-02":{"tn":5.8,"tx":15.2,"tm":10.0},"04-03":{"tn":5.8,"tx":14.4,"tm":9.6},"04-04":{"tn":5.2,"tx":13.6,"tm":9.1},"04-05":{"tn":4.5,"tx":14.2,"tm":9.2},"04-06":{"tn":5.0,"tx":15.0,"tm":9.8},"04-07":{"tn":5.4,"tx":14.9,"tm":9.8},"04-08":{"tn":5.1,"tx":15.6,"tm":10.3},"04-09":{"tn":5.3,"tx":16.3,"tm":10.4},"04-10":{"tn":5.2,"tx":15.6,"tm":10.0},"04-11":{"tn":4.8,"tx":15.6,"tm":9.9},"04-12":{"tn":5.0,"tx":15.6,"tm":10.0},"04-13":{"tn":5.4,"tx":15.0,"tm":9.9},"04-14":{"tn":5.1,"tx":14.9,"tm":9.9},"04-15":{"tn":6.2,"tx":15.7,"tm":10.6},"04-16":{"tn":5.7,"tx":16.2,"tm":10.6},"04-17":{"tn":5.3,"tx":16.3,"tm":10.7},"04-18":{"tn":6.1,"tx":15.9,"tm":10.8},"04-19":{"tn":5.2,"tx":15.9,"tm":10.4},"04-20":{"tn":5.7,"tx":16.7,"tm":11.2},"04-21":{"tn":6.1,"tx":18.0,"tm":12.0},"04-22":{"tn":7.0,"tx":17.8,"tm":12.3},"04-23":{"tn":7.4,"tx":17.7,"tm":12.1},"04-24":{"tn":7.1,"tx":17.6,"tm":12.1},"04-25":{"tn":7.8,"tx":16.6,"tm":11.7},"04-26":{"tn":7.6,"tx":16.9,"tm":11.7},"04-27":{"tn":7.2,"tx":16.6,"tm":11.5},"04-28":{"tn":7.9,"tx":16.7,"tm":11.9},"04-29":{"tn":7.5,"tx":16.8,"tm":11.9},"04-30":{"tn":7.6,"tx":16.9,"tm":12.0},"05-01":{"tn":8.3,"tx":17.1,"tm":12.3},"05-02":{"tn":8.4,"tx":17.6,"tm":12.8},"05-03":{"tn":7.8,"tx":17.7,"tm":12.6},"05-04":{"tn":7.7,"tx":17.5,"tm":12.4},"05-05":{"tn":7.6,"tx":18.4,"tm":13.0},"05-06":{"tn":8.2,"tx":17.9,"tm":12.9},"05-07":{"tn":8.9,"tx":18.9,"tm":13.5},"05-08":{"tn":9.3,"tx":17.8,"tm":13.2},"05-09":{"tn":8.9,"tx":18.3,"tm":13.2},"05-10":{"tn":8.7,"tx":18.9,"tm":13.7},"05-11":{"tn":9.9,"tx":18.3,"tm":13.6},"05-12":{"tn":8.8,"tx":17.9,"tm":13.1},"05-13":{"tn":8.1,"tx":18.7,"tm":13.2},"05-14":{"tn":8.3,"tx":18.6,"tm":13.2},"05-15":{"tn":7.8,"tx":18.7,"tm":13.4},"05-16":{"tn":9.1,"tx":19.6,"tm":14.4},"05-17":{"tn":9.6,"tx":19.6,"tm":14.2},"05-18":{"tn":9.0,"tx":19.2,"tm":13.9},"05-19":{"tn":8.7,"tx":18.8,"tm":13.6},"05-20":{"tn":9.1,"tx":19.3,"tm":14.1},"05-21":{"tn":9.3,"tx":20.1,"tm":14.7},"05-22":{"tn":10.0,"tx":20.1,"tm":14.8},"05-23":{"tn":9.5,"tx":21.0,"tm":15.3},"05-24":{"tn":10.3,"tx":20.7,"tm":15.4},"05-25":{"tn":10.6,"tx":21.5,"tm":16.0},"05-26":{"tn":11.0,"tx":20.9,"tm":15.6},"05-27":{"tn":10.8,"tx":21.4,"tm":15.8},"05-28":{"tn":10.6,"tx":21.3,"tm":15.6},"05-29":{"tn":10.7,"tx":21.0,"tm":15.7},"05-30":{"tn":11.2,"tx":21.6,"tm":16.1},"05-31":{"tn":10.9,"tx":21.3,"tm":15.9},"06-01":{"tn":10.8,"tx":21.7,"tm":16.3},"06-02":{"tn":11.2,"tx":21.9,"tm":16.4},"06-03":{"tn":10.9,"tx":21.4,"tm":15.9},"06-04":{"tn":10.6,"tx":21.3,"tm":15.8},"06-05":{"tn":11.2,"tx":20.5,"tm":15.8},"06-06":{"tn":11.2,"tx":21.7,"tm":16.3},"06-07":{"tn":11.5,"tx":21.9,"tm":16.4},"06-08":{"tn":11.2,"tx":21.6,"tm":16.3},"06-09":{"tn":11.5,"tx":21.7,"tm":16.4},"06-10":{"tn":12.0,"tx":21.2,"tm":16.2},"06-11":{"tn":11.5,"tx":20.6,"tm":15.8},"06-12":{"tn":11.7,"tx":20.9,"tm":15.9},"06-13":{"tn":11.2,"tx":21.7,"tm":16.3},"06-14":{"tn":11.6,"tx":22.2,"tm":16.6},"06-15":{"tn":12.5,"tx":21.8,"tm":16.6},"06-16":{"tn":11.6,"tx":22.9,"tm":17.1},"06-17":{"tn":12.1,"tx":23.1,"tm":17.5},"06-18":{"tn":12.3,"tx":23.3,"tm":17.7},"06-19":{"tn":12.8,"tx":23.3,"tm":17.7},"06-20":{"tn":12.9,"tx":22.6,"tm":17.5},"06-21":{"tn":12.9,"tx":22.5,"tm":17.3},"06-22":{"tn":12.1,"tx":23.4,"tm":17.7},"06-23":{"tn":12.0,"tx":23.6,"tm":17.8},"06-24":{"tn":12.0,"tx":24.0,"tm":18.1},"06-25":{"tn":12.6,"tx":24.3,"tm":18.4},"06-26":{"tn":13.2,"tx":24.4,"tm":18.8},"06-27":{"tn":14.1,"tx":24.4,"tm":19.0},"06-28":{"tn":14.0,"tx":24.8,"tm":19.1},"06-29":{"tn":13.0,"tx":24.6,"tm":18.6},"06-30":{"tn":13.6,"tx":24.0,"tm":18.4},"07-01":{"tn":14.1,"tx":24.3,"tm":18.6},"07-02":{"tn":13.7,"tx":23.7,"tm":18.4},"07-03":{"tn":13.6,"tx":23.7,"tm":18.4},"07-04":{"tn":13.6,"tx":23.8,"tm":18.3},"07-05":{"tn":13.6,"tx":22.8,"tm":17.7},"07-06":{"tn":12.4,"tx":23.3,"tm":17.7},"07-07":{"tn":12.3,"tx":23.2,"tm":17.6},"07-08":{"tn":12.7,"tx":24.2,"tm":18.3},"07-09":{"tn":12.9,"tx":24.4,"tm":18.6},"07-10":{"tn":13.4,"tx":24.5,"tm":18.8},"07-11":{"tn":13.5,"tx":24.0,"tm":18.3},"07-12":{"tn":13.1,"tx":23.6,"tm":18.1},"07-13":{"tn":13.8,"tx":23.8,"tm":18.4},"07-14":{"tn":13.5,"tx":24.6,"tm":18.7},"07-15":{"tn":13.3,"tx":25.4,"tm":19.2},"07-16":{"tn":13.8,"tx":25.3,"tm":19.2},"07-17":{"tn":14.1,"tx":25.7,"tm":19.5},"07-18":{"tn":13.6,"tx":25.8,"tm":19.6},"07-19":{"tn":14.4,"tx":25.8,"tm":19.8},"07-20":{"tn":14.7,"tx":25.8,"tm":19.8},"07-21":{"tn":14.0,"tx":25.1,"tm":19.3},"07-22":{"tn":13.0,"tx":25.6,"tm":19.2},"07-23":{"tn":13.7,"tx":26.1,"tm":19.6},"07-24":{"tn":13.9,"tx":26.0,"tm":19.6},"07-25":{"tn":14.2,"tx":25.8,"tm":19.6},"07-26":{"tn":14.7,"tx":25.5,"tm":19.8},"07-27":{"tn":15.1,"tx":25.0,"tm":19.4},"07-28":{"tn":14.2,"tx":25.0,"tm":19.2},"07-29":{"tn":14.0,"tx":25.6,"tm":19.5},"07-30":{"tn":14.1,"tx":25.1,"tm":19.2},"07-31":{"tn":14.0,"tx":25.4,"tm":19.3},"08-01":{"tn":13.6,"tx":25.7,"tm":19.4},"08-02":{"tn":14.4,"tx":25.5,"tm":19.4},"08-03":{"tn":14.5,"tx":25.7,"tm":19.8},"08-04":{"tn":14.5,"tx":25.2,"tm":19.6},"08-05":{"tn":14.1,"tx":25.8,"tm":19.6},"08-06":{"tn":14.1,"tx":25.5,"tm":19.3},"08-07":{"tn":14.3,"tx":25.9,"tm":19.5},"08-08":{"tn":14.1,"tx":25.5,"tm":19.3},"08-09":{"tn":13.8,"tx":25.2,"tm":19.1},"08-10":{"tn":13.6,"tx":25.3,"tm":19.0},"08-11":{"tn":13.8,"tx":25.4,"tm":19.2},"08-12":{"tn":14.4,"tx":24.3,"tm":18.7},"08-13":{"tn":13.8,"tx":24.1,"tm":18.4},"08-14":{"tn":14.0,"tx":24.6,"tm":18.9},"08-15":{"tn":13.6,"tx":25.0,"tm":18.9},"08-16":{"tn":13.2,"tx":24.6,"tm":18.6},"08-17":{"tn":13.8,"tx":24.8,"tm":18.9},"08-18":{"tn":14.3,"tx":25.1,"tm":19.1},"08-19":{"tn":13.9,"tx":24.8,"tm":18.7},"08-20":{"tn":13.5,"tx":24.4,"tm":18.5},"08-21":{"tn":13.4,"tx":25.6,"tm":19.0},"08-22":{"tn":13.6,"tx":25.1,"tm":19.0},"08-23":{"tn":14.5,"tx":24.8,"tm":18.9},"08-24":{"tn":13.5,"tx":24.0,"tm":18.4},"08-25":{"tn":14.2,"tx":24.3,"tm":18.8},"08-26":{"tn":13.9,"tx":23.9,"tm":18.4},"08-27":{"tn":14.6,"tx":23.7,"tm":18.6},"08-28":{"tn":13.2,"tx":23.4,"tm":17.8},"08-29":{"tn":12.2,"tx":23.3,"tm":17.2},"08-30":{"tn":11.9,"tx":23.5,"tm":17.5},"08-31":{"tn":11.9,"tx":23.3,"tm":17.2},"09-01":{"tn":11.9,"tx":23.0,"tm":17.0},"09-02":{"tn":11.3,"tx":23.7,"tm":17.3},"09-03":{"tn":12.1,"tx":23.6,"tm":17.5},"09-04":{"tn":12.6,"tx":23.7,"tm":17.8},"09-05":{"tn":12.6,"tx":23.5,"tm":17.6},"09-06":{"tn":12.4,"tx":23.2,"tm":17.4},"09-07":{"tn":12.2,"tx":23.2,"tm":17.1},"09-08":{"tn":12.1,"tx":23.3,"tm":17.3},"09-09":{"tn":12.3,"tx":23.5,"tm":17.3},"09-10":{"tn":12.6,"tx":23.5,"tm":17.5},"09-11":{"tn":12.5,"tx":22.7,"tm":17.0},"09-12":{"tn":11.9,"tx":21.7,"tm":16.4},"09-13":{"tn":11.8,"tx":21.6,"tm":16.1},"09-14":{"tn":11.1,"tx":21.7,"tm":15.8},"09-15":{"tn":10.7,"tx":21.4,"tm":15.7},"09-16":{"tn":10.8,"tx":21.7,"tm":15.8},"09-17":{"tn":10.8,"tx":21.6,"tm":15.8},"09-18":{"tn":11.3,"tx":21.5,"tm":15.9},"09-19":{"tn":10.7,"tx":21.1,"tm":15.6},"09-20":{"tn":11.2,"tx":21.7,"tm":16.0},"09-21":{"tn":10.9,"tx":22.0,"tm":15.9},"09-22":{"tn":10.8,"tx":21.1,"tm":15.5},"09-23":{"tn":10.8,"tx":21.3,"tm":15.6},"09-24":{"tn":10.7,"tx":20.4,"tm":15.1},"09-25":{"tn":10.1,"tx":20.0,"tm":14.5},"09-26":{"tn":10.0,"tx":20.2,"tm":14.6},"09-27":{"tn":10.8,"tx":20.6,"tm":15.2},"09-28":{"tn":10.5,"tx":20.4,"tm":15.0},"09-29":{"tn":11.1,"tx":20.3,"tm":15.0},"09-30":{"tn":10.4,"tx":19.9,"tm":14.7},"10-01":{"tn":11.7,"tx":19.3,"tm":14.9},"10-02":{"tn":11.3,"tx":19.2,"tm":14.6},"10-03":{"tn":10.4,"tx":19.1,"tm":14.2},"10-04":{"tn":10.3,"tx":18.4,"tm":13.8},"10-05":{"tn":9.4,"tx":18.6,"tm":13.8},"10-06":{"tn":10.2,"tx":18.0,"tm":13.6},"10-07":{"tn":9.4,"tx":17.8,"tm":13.3},"10-08":{"tn":10.6,"tx":18.3,"tm":14.0},"10-09":{"tn":10.5,"tx":18.7,"tm":14.0},"10-10":{"tn":10.4,"tx":18.6,"tm":14.1},"10-11":{"tn":10.4,"tx":19.0,"tm":14.2},"10-12":{"tn":10.1,"tx":18.6,"tm":13.8},"10-13":{"tn":9.9,"tx":17.9,"tm":13.4},"10-14":{"tn":9.6,"tx":17.5,"tm":13.0},"10-15":{"tn":9.5,"tx":17.1,"tm":12.9},"10-16":{"tn":8.9,"tx":17.3,"tm":12.6},"10-17":{"tn":8.8,"tx":16.8,"tm":12.2},"10-18":{"tn":8.0,"tx":16.8,"tm":12.0},"10-19":{"tn":7.8,"tx":16.3,"tm":11.5},"10-20":{"tn":8.4,"tx":15.6,"tm":11.8},"10-21":{"tn":8.4,"tx":16.1,"tm":11.7},"10-22":{"tn":8.5,"tx":16.0,"tm":11.9},"10-23":{"tn":8.7,"tx":16.6,"tm":12.3},"10-24":{"tn":9.4,"tx":16.4,"tm":12.5},"10-25":{"tn":9.2,"tx":15.9,"tm":12.0},"10-26":{"tn":7.9,"tx":15.9,"tm":11.6},"10-27":{"tn":8.9,"tx":15.4,"tm":11.7},"10-28":{"tn":7.7,"tx":15.3,"tm":11.0},"10-29":{"tn":7.8,"tx":15.1,"tm":11.1},"10-30":{"tn":7.9,"tx":15.4,"tm":11.2},"10-31":{"tn":7.3,"tx":15.5,"tm":11.0},"11-01":{"tn":7.7,"tx":15.0,"tm":11.0},"11-02":{"tn":7.2,"tx":15.0,"tm":11.0},"11-03":{"tn":7.8,"tx":15.0,"tm":10.9},"11-04":{"tn":7.4,"tx":14.5,"tm":10.4},"11-05":{"tn":6.3,"tx":13.8,"tm":9.7},"11-06":{"tn":6.6,"tx":14.1,"tm":10.0},"11-07":{"tn":7.1,"tx":13.4,"tm":10.0},"11-08":{"tn":7.1,"tx":13.8,"tm":10.2},"11-09":{"tn":6.7,"tx":13.5,"tm":9.8},"11-10":{"tn":6.8,"tx":13.3,"tm":9.7},"11-11":{"tn":6.7,"tx":13.7,"tm":10.1},"11-12":{"tn":7.1,"tx":13.4,"tm":9.8},"11-13":{"tn":6.6,"tx":13.0,"tm":9.5},"11-14":{"tn":5.8,"tx":13.0,"tm":9.2},"11-15":{"tn":5.7,"tx":12.4,"tm":8.8},"11-16":{"tn":5.3,"tx":11.7,"tm":8.1},"11-17":{"tn":4.8,"tx":11.4,"tm":7.8},"11-18":{"tn":4.9,"tx":11.7,"tm":7.9},"11-19":{"tn":4.1,"tx":11.1,"tm":7.5},"11-20":{"tn":5.0,"tx":11.1,"tm":7.9},"11-21":{"tn":5.1,"tx":11.3,"tm":7.8},"11-22":{"tn":4.8,"tx":11.4,"tm":7.9},"11-23":{"tn":5.4,"tx":11.1,"tm":8.0},"11-24":{"tn":5.1,"tx":11.2,"tm":8.0},"11-25":{"tn":5.8,"tx":11.5,"tm":8.3},"11-26":{"tn":4.8,"tx":11.2,"tm":7.6},"11-27":{"tn":4.8,"tx":11.1,"tm":8.1},"11-28":{"tn":5.7,"tx":11.2,"tm":8.2},"11-29":{"tn":5.0,"tx":11.0,"tm":7.5},"11-30":{"tn":3.8,"tx":10.4,"tm":6.8},"12-01":{"tn":4.3,"tx":10.8,"tm":7.6},"12-02":{"tn":4.9,"tx":10.1,"tm":7.4},"12-03":{"tn":4.9,"tx":10.4,"tm":7.5},"12-04":{"tn":4.0,"tx":10.1,"tm":7.0},"12-05":{"tn":3.7,"tx":9.7,"tm":6.5},"12-06":{"tn":3.9,"tx":9.9,"tm":6.7},"12-07":{"tn":3.3,"tx":10.1,"tm":6.5},"12-08":{"tn":3.5,"tx":9.9,"tm":6.5},"12-09":{"tn":3.3,"tx":9.6,"tm":6.0},"12-10":{"tn":2.7,"tx":9.7,"tm":5.8},"12-11":{"tn":3.2,"tx":9.6,"tm":6.2},"12-12":{"tn":3.4,"tx":9.9,"tm":6.5},"12-13":{"tn":3.8,"tx":9.2,"tm":6.2},"12-14":{"tn":2.7,"tx":8.8,"tm":5.5},"12-15":{"tn":2.5,"tx":8.8,"tm":5.4},"12-16":{"tn":3.3,"tx":9.2,"tm":6.1},"12-17":{"tn":3.3,"tx":9.7,"tm":6.3},"12-18":{"tn":4.3,"tx":9.6,"tm":7.0},"12-19":{"tn":4.4,"tx":10.3,"tm":7.0},"12-20":{"tn":3.7,"tx":9.9,"tm":6.7},"12-21":{"tn":4.6,"tx":9.9,"tm":7.4},"12-22":{"tn":5.7,"tx":10.0,"tm":7.7},"12-23":{"tn":4.6,"tx":10.1,"tm":7.1},"12-24":{"tn":4.3,"tx":9.4,"tm":6.8},"12-25":{"tn":4.1,"tx":9.3,"tm":6.3},"12-26":{"tn":2.6,"tx":8.8,"tm":5.5},"12-27":{"tn":3.1,"tx":8.4,"tm":5.5},"12-28":{"tn":2.3,"tx":8.4,"tm":4.9},"12-29":{"tn":1.4,"tx":9.0,"tm":5.2},"12-30":{"tn":3.0,"tx":9.4,"tm":6.1},"12-31":{"tn":3.2,"tx":8.5,"tm":5.6}};
 
@@ -122,33 +118,14 @@ function ecartNorm(val, ref) {
 
 let charts = {};
 
-function b64url(s){return btoa(unescape(encodeURIComponent(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
-function b64urlB(a){let s='';a.forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
-
-async function getToken(){
-  const now=Math.floor(Date.now()/1000);
-  const h=b64url(JSON.stringify({alg:"RS256",typ:"JWT"}));
-  const p=b64url(JSON.stringify({iss:SA.client_email,scope:"https://www.googleapis.com/auth/bigquery",aud:"https://oauth2.googleapis.com/token",exp:now+3600,iat:now}));
-  const sig=h+"."+p;
-  const pem=SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
-  const der=Uint8Array.from(atob(pem),c=>c.charCodeAt(0));
-  const key=await crypto.subtle.importKey("pkcs8",der.buffer,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["sign"]);
-  const bytes=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",key,new TextEncoder().encode(sig));
-  const jwt=sig+"."+b64urlB(new Uint8Array(bytes));
-  const r=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="+jwt});
-  const d=await r.json();
-  if(!d.access_token)throw new Error("Auth: "+JSON.stringify(d));
-  return d.access_token;
-}
-
-async function queryBQ(token,sql){
-  const r=await fetch("https://bigquery.googleapis.com/bigquery/v2/projects/"+SA.project_id+"/queries",{
+async function queryBQ(sql){
+  const r=await fetch(PROXY_URL,{
     method:"POST",
-    headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
-    body:JSON.stringify({query:sql,useLegacySql:false,timeoutMs:30000,location:"europe-west9"})
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({query:sql})
   });
   const d=await r.json();
-  if(d.error)throw new Error(d.error.message);
+  if(d.error)throw new Error(d.error);
   return d;
 }
 
@@ -263,7 +240,7 @@ async function loadData(){
   const labelStart = new Date(start+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
   const labelEnd = new Date(end+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
   document.getElementById('top-sub').textContent=labelStart+' → '+labelEnd;
-  const W = "WHERE DATE(obsTimeLocal) BETWEEN '"+start+"' AND '"+end+"'";
+  const W = "WHERE DATE(obsTimeUtc, 'Europe/Paris') BETWEEN '"+start+"' AND '"+end+"'";
 
   // ---- KPI mensuel ----
   const qKpi = `SELECT
@@ -273,30 +250,30 @@ async function loadData(){
     AVG(windspeedAvg) AS vent_moy,
     MAX(windgustHigh) AS rafale_max,
     SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_total
-  FROM \`meteo_cintre.data_5_min\` ${W}`;
+  FROM \`meteo_cintre.raw_data_v2\` ${W}`;
 
   // ---- Extremes dates ----
   const qEx = `SELECT
-    FORMAT_DATE('%d/%m/%Y', DATE(t_max.obsTimeLocal)) AS date_temp_max,
-    FORMAT_DATE('%d/%m/%Y', DATE(t_min.obsTimeLocal)) AS date_temp_min,
-    FORMAT_DATE('%d/%m/%Y', DATE(p_max.obsTimeLocal)) AS date_intensite_max,
-    FORMAT_DATE('%d/%m/%Y', DATE(v_max.obsTimeLocal)) AS date_rafale_max,
-    FORMAT_DATE('%d/%m/%Y', DATE(vm_max.obsTimeLocal)) AS date_vent_moy_max
+    FORMAT_DATE('%d/%m/%Y', DATE(t_max.obsTimeLocal, 'Europe/Paris')) AS date_temp_max,
+    FORMAT_DATE('%d/%m/%Y', DATE(t_min.obsTimeLocal, 'Europe/Paris')) AS date_temp_min,
+    FORMAT_DATE('%d/%m/%Y', DATE(p_max.obsTimeLocal, 'Europe/Paris')) AS date_intensite_max,
+    FORMAT_DATE('%d/%m/%Y', DATE(v_max.obsTimeLocal, 'Europe/Paris')) AS date_rafale_max,
+    FORMAT_DATE('%d/%m/%Y', DATE(vm_max.obsTimeLocal, 'Europe/Paris')) AS date_vent_moy_max
   FROM
-    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY tempHigh DESC LIMIT 1) t_max,
-    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY tempLow ASC LIMIT 1) t_min,
-    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY precipRate DESC LIMIT 1) p_max,
-    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY windgustHigh DESC LIMIT 1) v_max,
-    (SELECT obsTimeLocal FROM \`meteo_cintre.data_5_min\` ${W} ORDER BY windspeedAvg DESC LIMIT 1) vm_max`;
+    (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` ${W} ORDER BY tempHigh DESC LIMIT 1) t_max,
+    (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` ${W} ORDER BY tempLow ASC LIMIT 1) t_min,
+    (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` ${W} ORDER BY precipRate DESC LIMIT 1) p_max,
+    (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` ${W} ORDER BY windgustHigh DESC LIMIT 1) v_max,
+    (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` ${W} ORDER BY windspeedAvg DESC LIMIT 1) vm_max`;
 
   // ---- Agrégats journaliers ----
   const qDaily = `SELECT
-    DATE(obsTimeLocal) AS jour,
+    DATE(obsTimeUtc, 'Europe/Paris') AS jour,
     MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
     SUM(somme) AS pluie, MAX(precipRate) AS intensite_max,
     AVG(windspeedAvg) AS vent_moy, MAX(windgustHigh) AS rafale_max,
     SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h
-  FROM \`meteo_cintre.data_5_min\` ${W}
+  FROM \`meteo_cintre.raw_data_v2\` ${W}
   GROUP BY jour ORDER BY jour ASC`;
 
   // ---- Comptages seuils ----
@@ -310,9 +287,9 @@ async function loadData(){
     COUNTIF(pluie >= 1) AS nb_pluie1,
     COUNTIF(pluie >= 10) AS nb_pluie10
   FROM (
-    SELECT DATE(obsTimeLocal) AS jour,
+    SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,
       MIN(tempLow) AS t_min, MAX(tempHigh) AS t_max, SUM(somme) AS pluie
-    FROM \`meteo_cintre.data_5_min\` ${W}
+    FROM \`meteo_cintre.raw_data_v2\` ${W}
     GROUP BY jour
   )`;
 
@@ -322,18 +299,17 @@ async function loadData(){
     ROUND(COUNTIF(winddirAvg>=135 AND winddirAvg<225)*100.0/COUNT(*),0) AS pct_s,
     ROUND(COUNTIF(winddirAvg>=45 AND winddirAvg<135)*100.0/COUNT(*),0) AS pct_e,
     ROUND(COUNTIF(winddirAvg>=225 AND winddirAvg<315)*100.0/COUNT(*),0) AS pct_o
-  FROM \`meteo_cintre.data_5_min\` ${W} AND winddirAvg IS NOT NULL`;
+  FROM \`meteo_cintre.raw_data_v2\` ${W} AND winddirAvg IS NOT NULL`;
 
   // ---- Jour avec vent moy max ----
-  const qVentMax = `SELECT DATE(obsTimeLocal) AS jour, AVG(windspeedAvg) AS vent_moy_jour
-  FROM \`meteo_cintre.data_5_min\` ${W}
+  const qVentMax = `SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour, AVG(windspeedAvg) AS vent_moy_jour
+  FROM \`meteo_cintre.raw_data_v2\` ${W}
   GROUP BY jour ORDER BY vent_moy_jour DESC LIMIT 1`;
 
   try{
-    const token = await getToken();
     const [kpiRes,exRes,dailyRes,seuilsRes,ventRes,ventMaxRes] = await Promise.all([
-      queryBQ(token,qKpi), queryBQ(token,qEx), queryBQ(token,qDaily),
-      queryBQ(token,qSeuils), queryBQ(token,qVent), queryBQ(token,qVentMax)
+      queryBQ(qKpi), queryBQ(qEx), queryBQ(qDaily),
+      queryBQ(qSeuils), queryBQ(qVent), queryBQ(qVentMax)
     ]);
 
     const k = parseRows(kpiRes)[0]||{};

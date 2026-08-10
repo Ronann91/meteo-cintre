@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Météo — Cintré | Détail journalier</title>
+<title>Météo — Cintré | Détail journalier (V2)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -90,7 +90,7 @@ nav a.active { color: #667eea; font-weight: 600; }
 <div class="top-bar">
   <div class="top-bar-row1">
     <div>
-      <a href="index.html" class="back-link">← Aujourd'hui</a>
+      <a href="index-v2.html" class="back-link">← Aujourd'hui</a>
       <div class="top-bar-title">Détail journalier</div>
     </div>
     <div class="top-bar-controls">
@@ -107,19 +107,15 @@ nav a.active { color: #667eea; font-weight: 600; }
 <div id="modal-container"></div>
 
 <nav>
-  <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
-  <a href="detail.html" class="active"><span style="font-size:20px;">📅</span>Journée</a>
-  <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
-  <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
-  <a href="climat.html"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="index-v2.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
+  <a href="detail-v2.html" class="active"><span style="font-size:20px;">📅</span>Journée</a>
+  <a href="bilan-v2.html"><span style="font-size:20px;">📆</span>Bilan</a>
+  <a href="records-v2.html"><span style="font-size:20px;">🏆</span>Records</a>
+  <a href="climat-v2.html"><span style="font-size:20px;">🌍</span>Climat</a>
 </nav>
 
 <script>
-const SA = {
-  project_id: "mystic-aileron-471209-p6",
-  client_email: "app-perso@mystic-aileron-471209-p6.iam.gserviceaccount.com",
-  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBjetWxhjhSL4F\nWqQzif3uQoHH8tFceFmKHX0zg8qy9XZjSmpZApkBL1m/UX3VoHEehPd7aLMuC86j\nzvSfvv3kh1fZBzXtW6OGmlDgMLIIFzXJfd9efe24iX7CzGTuQPa6MG+/kg+KlKUT\nXvTOpT8pRLCcIDqkUGpCT0QGERCbQ0oueQXRA9JwXyOfJoukODhWqsgMPEoIt+xV\nFt3WqQQXAeyvHOP6oA4mSJisk7ShrVXKN9R4ik1LO/jXlRlEH2MH3mYbalSHyeic\n/tHkQjJ6wP61NjhQnInqWo7Tny4qtrPwpU3kj+Y7uoDWAiVYIAsLLR62h7YAPNEZ\noD6OFZkvAgMBAAECggEADPR1TIUM1ENcqJoVBHgXfXOJITtw5OoPQC3SG/kVv52r\nU2D/Nj70w74KGUKYlAxdlefbcrCi0ZGrvo4TFIAhmUKv0BBp/R2Vl+RLRn4r5Fu9\nV2Or6DSwjRny2JH6rXG+sd6dFCrwDFv/oojIBO7Nh/MXiROlKStSuWZ5zJgmzuV3\nlW63l7RRLujmr5Z4kaNK8x1EMmhNHg7FvBLJ7MdHOXQh8zPE+1YC9laBqQwZaEvJ\nq51hNKTWFhB5pg4SqL+0pbgzQ4Wg58grIhRaw6z9YYwgFPc59YSRB5xUCfTUt6Hg\nILw9O3Z5CNRKBLzA6Q6jIyzbLEyOGcZTy0Sq2AJr+QKBgQD7E8KPh96aykXYxnvz\nc7jd6Irb3H0Dyd1P2kKb9C6FWWW+XU4wcOws49WMBAp03KJm/h2rEvbzXk1u1eHL\n/SwVhRuZkrTluIitvyvC3TZKCXZGLVKhbRq1TKuqoV2V1vV5Re29E0abliRWhFoP\n2ZFGrIMngvck/knyV63b3U82SQKBgQDFWW7hh0abOnn2KlVR8h4l6Sp/N3Nu1//U\nE9mY9IeCZ2PlwefnCQRuAW/tX6/FGerOne+RmUfoCkEqaOYQNoAiNhzhRLIF4cey\nyJxpsHuFFLssuNX3brm8y1vdQ5FdPSnp1KC/nHUt23bGqo2yO8pBL3rCsl6diTRJ\n5xEMMHtztwKBgDigi0gN79HffwNWOMx+tBowgWj3AKcjFywUYOOFnhxrPjxCFQlt\n3oZ9WEN9AdK7lFFATPaxj0ryYOp3iLaWQiQUYlYvtWb+SK1PKZKIi98E5U0Mmc9Y\nqSZsxWb1gAL0eWbBs83qFAmxQj7VGO7sNgzHickWi6EnTQxAZDDraBspAoGBAIS7\nzS8VHDElmIgwGuidzxcyhym/cv03fFL48t7EgSv9PBx5We9zii4u+0gNlpwb/Wjw\nowQrs0hnNUNAAJUhAvd/q9b7rDz2iak+8qzHTZzJv8apnwfnyjcoE+ZzHp82ly01\nnNSjd9DbDj0600jwm+1R8OBoteiBMtEN/9JR/YZrAoGBANo/HPFk8NnGUINr4bSW\nosfCWI+R6Rq0sNZZE0vu8xPGQA4rEum3fzxTJ66Cshrc2F4ImNjCnN5UhzElMhcI\nSYIXajR5XLsO86ZI8UvFCkI0WuKi5Jx1H9oXOe0DjdOlMR1jnbfEJB8sq3zfb6+o\nvyfjf+yZS/InhZSVb7SclMU+\n-----END PRIVATE KEY-----\n"
-};
+const PROXY_URL = "https://europe-west9-mystic-aileron-471209-p6.cloudfunctions.net/query-proxy-meteo";
 
 const NORMALES_RENNES = {
   1: {tmin: 3.3, tmax: 9.2, tmoy: 6.0},
@@ -146,33 +142,14 @@ function ecartNorm(val, ref) {
 let charts = {};
 let rawRows = [];
 
-function b64url(s) { return btoa(unescape(encodeURIComponent(s))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
-function b64urlB(a) { let s=''; a.forEach(b=>s+=String.fromCharCode(b)); return btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_'); }
-
-async function getToken() {
-  const now = Math.floor(Date.now()/1000);
-  const h = b64url(JSON.stringify({alg:"RS256",typ:"JWT"}));
-  const p = b64url(JSON.stringify({iss:SA.client_email,scope:"https://www.googleapis.com/auth/bigquery",aud:"https://oauth2.googleapis.com/token",exp:now+3600,iat:now}));
-  const sig = h+"."+p;
-  const pem = SA.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g,'');
-  const der = Uint8Array.from(atob(pem), c=>c.charCodeAt(0));
-  const key = await crypto.subtle.importKey("pkcs8", der.buffer, {name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"}, false, ["sign"]);
-  const bytes = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(sig));
-  const jwt = sig+"."+b64urlB(new Uint8Array(bytes));
-  const r = await fetch("https://oauth2.googleapis.com/token", {method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="+jwt});
-  const d = await r.json();
-  if(!d.access_token) throw new Error("Auth: "+JSON.stringify(d));
-  return d.access_token;
-}
-
-async function queryBQ(token, sql) {
-  const r = await fetch("https://bigquery.googleapis.com/bigquery/v2/projects/"+SA.project_id+"/queries", {
-    method:"POST",
-    headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
-    body:JSON.stringify({query:sql,useLegacySql:false,timeoutMs:15000,location:"europe-west9"})
+async function queryBQ(sql) {
+  const r = await fetch(PROXY_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({query: sql})
   });
   const d = await r.json();
-  if(d.error) throw new Error(d.error.message);
+  if(d.error) throw new Error(d.error);
   return d;
 }
 
@@ -315,18 +292,17 @@ async function loadData() {
   document.getElementById('top-sub').textContent = new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>';
 
-  const qKpi = "SELECT MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max, MAX(windgustHigh) AS vent_rafale_max, AVG(windspeedAvg) AS vent_moy_jour, AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min, MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min, AVG(pressureMax) AS pression_moy, SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "'";
+  const qKpi = "SELECT MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max, MAX(windgustHigh) AS vent_rafale_max, AVG(windspeedAvg) AS vent_moy_jour, AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min, MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min, AVG(pressureMax) AS pression_moy, SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "'";
 
-  const qLast = "SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel, humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle, solarRadiationHigh AS soleil_actuel, FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal DESC LIMIT 1";
+  const qLast = "SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel, humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle, solarRadiationHigh AS soleil_actuel, FORMAT_TIMESTAMP('%H:%M', obsTimeUtc, 'Europe/Paris') AS heure FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY obsTimeUtc DESC LIMIT 1";
 
-  const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal) AS heure_temp_max, FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal) AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal) AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal) AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal) AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal) AS heure_vent_max, FORMAT_TIMESTAMP('%H:%M', pr_max.obsTimeLocal) AS heure_pression_max, FORMAT_TIMESTAMP('%H:%M', pr_min.obsTimeLocal) AS heure_pression_min FROM (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY pressureMax DESC LIMIT 1) pr_max, (SELECT obsTimeLocal FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY pressureMin ASC LIMIT 1) pr_min";
+  const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal, 'Europe/Paris') AS heure_temp_max, FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal, 'Europe/Paris') AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal, 'Europe/Paris') AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal, 'Europe/Paris') AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal, 'Europe/Paris') AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal, 'Europe/Paris') AS heure_vent_max, FORMAT_TIMESTAMP('%H:%M', pr_max.obsTimeLocal, 'Europe/Paris') AS heure_pression_max, FORMAT_TIMESTAMP('%H:%M', pr_min.obsTimeLocal, 'Europe/Paris') AS heure_pression_min FROM (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY pressureMax DESC LIMIT 1) pr_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY pressureMin ASC LIMIT 1) pr_min";
 
-  const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeLocal) AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeLocal ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, pressureMax AS pression, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.data_5_min` WHERE DATE(obsTimeLocal) = '" + d + "' ORDER BY obsTimeLocal ASC";
+  const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeUtc, 'Europe/Paris') AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeUtc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, pressureMax AS pression, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY obsTimeUtc ASC";
 
   try {
-    const token = await getToken();
     const [kpiRes,lastRes,exRes,chartRes] = await Promise.all([
-      queryBQ(token,qKpi), queryBQ(token,qLast), queryBQ(token,qEx), queryBQ(token,qChart)
+      queryBQ(qKpi), queryBQ(qLast), queryBQ(qEx), queryBQ(qChart)
     ]);
 
     const k = parseRows(kpiRes)[0]||{};
