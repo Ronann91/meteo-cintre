@@ -147,7 +147,7 @@ function buildMonthFilter(){
 
 function selectMonth(i){ selectedMonth=i; buildMonthFilter(); loadData(); }
 
-function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE(obsTimeUtc, 'Europe/Paris'))='+selectedMonth; }
+function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE(obsTimeUtc, "Europe/Paris"))='+selectedMonth; }
 function monthWhereT(){ return ' WHERE TRUE'+monthWhere(); }
 function monthWhereP(){ return ' WHERE TRUE AND precipRate < 150'+monthWhere(); }
 
