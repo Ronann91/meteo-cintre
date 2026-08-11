@@ -45,6 +45,11 @@ input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
 .kpi-sub-item span { font-size: 10px; color: #ccc; }
 .kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
 .kpi-sub-single b { color: #555; font-weight: 500; }
+.rec-badge { display:inline-block; font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:3px; vertical-align:middle; white-space:nowrap; }
+.rec-badge.rec-10 { background:#eef0ff; color:#8890c0; font-weight:600; }
+.rec-badge.rec-3 { background:#ffe0d6; color:#c0392b; font-size:9px; }
+.rec-badge.rec-1 { background:#ffd700; color:#7a4a00; font-size:10px; padding:2px 6px; box-shadow:0 0 0 1px #ffb300, 0 0 5px rgba(255,180,0,0.7); animation: recPulse 1.4s ease-in-out infinite; }
+@keyframes recPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
 
 .section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
 .chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
@@ -175,6 +180,81 @@ function heatColor(val,min,max,type) {
   return '';
 }
 
+const RECORDS_CACHE_KEY = 'meteo_records_cache_detail_v1';
+
+function todayDateStr() {
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
+  const o = {}; parts.forEach(p => o[p.type] = p.value);
+  return `${o.year}-${o.month}-${o.day}`;
+}
+
+// Cache des "top 10 historiques" (all-time + par mois calendaire), indépendant du jour
+// consulté ici puisque records.html/index.html les alimentent déjà. Contrairement à la
+// page "Aujourd'hui", pas besoin d'exclure le jour affiché : c'est un jour déjà écoulé
+// (ou en cours si on regarde aujourd'hui, ce qui reste correct à afficher tel quel).
+async function getRecordsCache(month) {
+  const dateStr = todayDateStr();
+  let cache = null;
+  try { cache = JSON.parse(localStorage.getItem(RECORDS_CACHE_KEY)); } catch(e) {}
+  if (!cache || cache.date !== dateStr) cache = {date: dateStr, all: null, months: {}};
+
+  function qReading(col, extraWhere, order, monthFilter) {
+    return `SELECT ${col} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE TRUE${extraWhere||''}${monthFilter||''} ORDER BY val ${order} LIMIT 10`;
+  }
+  function qDaily(agg, extraWhere, order, monthFilter, minCount) {
+    const having = minCount ? ` HAVING COUNT(*)>=${minCount}` : '';
+    return `SELECT val FROM (SELECT ${agg} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE TRUE${extraWhere||''}${monthFilter||''} GROUP BY DATE(obsTimeUtc,"Europe/Paris")${having}) ORDER BY val ${order} LIMIT 10`;
+  }
+  async function fetchScope(monthFilter) {
+    const jobs = {
+      temp_max:      qDaily('MAX(tempHigh)', '', 'DESC', monthFilter, null),
+      temp_min:      qDaily('MIN(tempLow)', '', 'ASC', monthFilter, null),
+      temp_moy:      qDaily('AVG(tempAvg)', '', 'DESC', monthFilter, 280),
+      amplitude:     qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'DESC', monthFilter, 280),
+      pluie_jour:    qDaily('SUM(somme)', ' AND precipRate<150', 'DESC', monthFilter, null),
+      vent_moy_jour: qDaily('AVG(windspeedAvg)', '', 'DESC', monthFilter, null),
+      intensite:     qReading('precipRate', ' AND precipRate<150', 'DESC', monthFilter),
+      rafale:        qReading('windgustHigh', '', 'DESC', monthFilter)
+    };
+    const keys = Object.keys(jobs);
+    const results = await Promise.all(keys.map(k => queryBQ(jobs[k])));
+    const data = {};
+    keys.forEach((k,i) => { data[k] = parseRows(results[i]).map(r=>n(r.val)).filter(v=>v!==null); });
+    return data;
+  }
+
+  if (!cache.all) {
+    try { cache.all = await fetchScope(''); } catch(e) { cache.all = {}; }
+  }
+  if (month && !cache.months[month]) {
+    const monthFilter = ` AND EXTRACT(MONTH FROM DATE(obsTimeUtc,"Europe/Paris")) = ${month}`;
+    try { cache.months[month] = await fetchScope(monthFilter); } catch(e) { cache.months[month] = {}; }
+  }
+
+  try { localStorage.setItem(RECORDS_CACHE_KEY, JSON.stringify(cache)); } catch(e) {}
+  return cache;
+}
+
+function computeRank(list, value, asc) {
+  if (value === null || value === undefined || !isFinite(value) || !list || !list.length) return null;
+  const better = list.filter(v => asc ? v < value : v > value).length;
+  const rank = better + 1;
+  return rank <= 10 ? rank : null;
+}
+
+function rankBadge(rank, scopeLabel) {
+  if (!rank) return '';
+  const cls = rank===1 ? 'rec-1' : rank<=3 ? 'rec-3' : 'rec-10';
+  const icon = rank===1 ? '🥇' : rank<=3 ? '🏆' : '🏅';
+  return ` <span class="rec-badge ${cls}">${icon} #${rank} ${scopeLabel}</span>`;
+}
+
+function recordBadge(recCache, key, value, asc, month) {
+  const rMonth = computeRank((recCache.months[month]||{})[key], value, asc);
+  const rAll = computeRank((recCache.all||{})[key], value, asc);
+  return rankBadge(rMonth, 'mois') + rankBadge(rAll, 'all-time');
+}
+
 function makeChart(id,type,labels,datasets,opts) {
   opts = opts||{};
   if(charts[id]) charts[id].destroy();
@@ -290,6 +370,7 @@ function getSelectedDate() {
 async function loadData() {
   const d = getSelectedDate();
   if(!d) return;
+  const _moisD = new Date(d+'T12:00:00').getMonth()+1;
   document.getElementById('top-sub').textContent = new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>';
 
@@ -302,8 +383,8 @@ async function loadData() {
   const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeUtc, 'Europe/Paris') AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeUtc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, pressureMax AS pression, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY obsTimeUtc ASC";
 
   try {
-    const [kpiRes,lastRes,exRes,chartRes] = await Promise.all([
-      queryBQ(qKpi), queryBQ(qLast), queryBQ(qEx), queryBQ(qChart)
+    const [kpiRes,lastRes,exRes,chartRes,recCache] = await Promise.all([
+      queryBQ(qKpi), queryBQ(qLast), queryBQ(qEx), queryBQ(qChart), getRecordsCache(_moisD)
     ]);
 
     const k = parseRows(kpiRes)[0]||{};
@@ -315,11 +396,20 @@ async function loadData() {
 
     const tempActuelle = n(last.temp_actuelle);
     const delta = (n(k.temp_max)!==null&&n(k.temp_min)!==null)?(n(k.temp_max)-n(k.temp_min)).toFixed(1):'—';
-    const _moisD = new Date(d+'T12:00:00').getMonth()+1;
     const _nrD = NORMALES_RENNES[_moisD]||NORMALES_RENNES[1];
     const _eMax = ecartNorm(n(k.temp_max), _nrD.tmax);
     const _eMin = ecartNorm(n(k.temp_min), _nrD.tmin);
     const _eMoy = ecartNorm(n(k.temp_moy), _nrD.tmoy);
+
+    const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false, _moisD);
+    const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true, _moisD);
+    const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false, _moisD);
+    const deltaVal = (n(k.temp_max)!==null && n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)) : null;
+    const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false, _moisD);
+    const bPluieJour = recordBadge(recCache, 'pluie_jour', n(k.pluie_total), false, _moisD);
+    const bIntensite = recordBadge(recCache, 'intensite', n(k.pluie_rate_max), false, _moisD);
+    const bRafale = recordBadge(recCache, 'rafale', n(k.vent_rafale_max), false, _moisD);
+    const bVentMoy = recordBadge(recCache, 'vent_moy_jour', n(k.vent_moy_jour), false, _moisD);
     const ensH = parseFloat(k.ens_h||0);
     const ensHH = Math.floor(ensH);
     const ensMM = Math.round((ensH-ensHH)*60);
@@ -331,18 +421,18 @@ async function loadData() {
           +'<div class="main-temp-label">Température moyenne</div>'
           +'<div class="main-temp-value">'+fmt(n(k.temp_moy))+'<sup>°C</sup></div>'
           +'<div class="main-temp-meta">'
-            +'<div class="meta-item"><b>↑ '+fmt(k.temp_max)+'°C'+_eMax+'</b><span>'+( ex.heure_temp_max||'—')+'</span></div>'
-            +'<div class="meta-item"><b>↓ '+fmt(k.temp_min)+'°C'+_eMin+'</b><span>'+(ex.heure_temp_min||'—')+'</span></div>'
-            +'<div class="meta-item"><b>Moy '+fmt(k.temp_moy)+'°C'+_eMoy+'</b></div>'
-            +'<div class="meta-item"><b>Δ '+delta+'°C</b></div>'
+            +'<div class="meta-item"><b>↑ '+fmt(k.temp_max)+'°C'+_eMax+bTempMax+'</b><span>'+( ex.heure_temp_max||'—')+'</span></div>'
+            +'<div class="meta-item"><b>↓ '+fmt(k.temp_min)+'°C'+_eMin+bTempMin+'</b><span>'+(ex.heure_temp_min||'—')+'</span></div>'
+            +'<div class="meta-item"><b>Moy '+fmt(k.temp_moy)+'°C'+_eMoy+bTempMoy+'</b></div>'
+            +'<div class="meta-item"><b>Δ '+delta+'°C'+bAmplitude+'</b></div>'
           +'</div>'
           +'<div style="font-size:9px;color:#ccc;margin-top:5px;line-height:1.4;">Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)</div>'
         +'</div>'
         +'<div class="main-temp-icon">'+tempIcon(n(k.temp_moy))+'</div>'
       +'</div>'
       +'<div class="kpi-grid">'
-        +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon blue">🌧️</div><div class="kpi-card-title">Pluie du jour</div></div><div class="kpi-card-value">'+fmt(k.pluie_total)+'<span class="kpi-card-unit"> mm</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.pluie_rate_max)+' mm/h</b><span>Intensité max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_pluie_max||'—')+'</b><span>heure max</span></div></div></div>'
-        +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div><div class="kpi-card-value">'+fmt(k.vent_moy_jour,1)+'<span class="kpi-card-unit"> km/h</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.vent_rafale_max,1)+' km/h</b><span>Rafale max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_vent_max||'—')+'</b><span>heure rafale max</span></div></div></div>'
+        +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon blue">🌧️</div><div class="kpi-card-title">Pluie du jour</div></div><div class="kpi-card-value">'+fmt(k.pluie_total)+'<span class="kpi-card-unit"> mm</span>'+bPluieJour+'</div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.pluie_rate_max)+' mm/h'+bIntensite+'</b><span>Intensité max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_pluie_max||'—')+'</b><span>heure max</span></div></div></div>'
+        +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div><div class="kpi-card-value">'+fmt(k.vent_moy_jour,1)+'<span class="kpi-card-unit"> km/h</span>'+bVentMoy+'</div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>'+fmt(k.vent_rafale_max,1)+' km/h'+bRafale+'</b><span>Rafale max</span></div><div class="kpi-sub-item"><b>'+(ex.heure_vent_max||'—')+'</b><span>heure rafale max</span></div></div></div>'
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon amber">☀️</div><div class="kpi-card-title">Ensoleillement</div></div><div class="kpi-card-value">'+ensStr+'</div><div class="kpi-sub-single">Rayonnement max<br><b>'+fmt(n(k.pluie_rate_max),0)+' W/m²</b></div></div>'
         +'<div class="kpi-card"><div class="kpi-card-header"><div class="kpi-icon pink">💦</div><div class="kpi-card-title">Humidité</div></div><div class="kpi-card-value">'+fmt(k.humidite_moy,0)+'<span class="kpi-card-unit">%</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>↑ '+fmt(k.humidite_max,0)+'%</b><span>'+(ex.heure_hum_max||'—')+'</span></div><div class="kpi-sub-item"><b>↓ '+fmt(k.humidite_min,0)+'%</b><span>'+(ex.heure_hum_min||'—')+'</span></div></div></div>'
         +'<div class="kpi-card full"><div class="kpi-card-header"><div class="kpi-icon purple">🔵</div><div class="kpi-card-title">Pression</div></div><div class="kpi-card-value">'+fmt(k.pression_moy,0)+'<span class="kpi-card-unit"> hPa</span></div><div class="kpi-sub-grid"><div class="kpi-sub-item"><b>↑ '+fmt(k.pression_max,0)+' hPa</b><span>'+(ex.heure_pression_max||'—')+'</span></div><div class="kpi-sub-item"><b>↓ '+fmt(k.pression_min,0)+' hPa</b><span>'+(ex.heure_pression_min||'—')+'</span></div></div></div>'

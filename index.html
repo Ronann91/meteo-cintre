@@ -48,6 +48,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .kpi-sub-item span { font-size: 10px; color: #ccc; }
 .kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
 .kpi-sub-single b { color: #555; font-weight: 500; }
+.rec-badge { display:inline-block; font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:3px; vertical-align:middle; white-space:nowrap; }
+.rec-badge.rec-10 { background:#eef0ff; color:#8890c0; font-weight:600; }
+.rec-badge.rec-3 { background:#ffe0d6; color:#c0392b; font-size:9px; }
+.rec-badge.rec-1 { background:#ffd700; color:#7a4a00; font-size:10px; padding:2px 6px; box-shadow:0 0 0 1px #ffb300, 0 0 5px rgba(255,180,0,0.7); animation: recPulse 1.4s ease-in-out infinite; }
+@keyframes recPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
 
 .section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
 .chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
@@ -155,6 +160,77 @@ function heatColor(val, min, max, type='default') {
     return `background:rgba(100,180,255,${0.08 + ratio*0.35});`;
   }
   return `background:rgba(100,100,200,${0.08 + ratio*0.3});`;
+}
+
+const RECORDS_CACHE_KEY = 'meteo_records_cache_v2';
+
+function parisDateParts() {
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
+  const o = {}; parts.forEach(p => o[p.type] = p.value);
+  return {dateStr: `${o.year}-${o.month}-${o.day}`, month: parseInt(o.month, 10)};
+}
+
+async function getRecordsCache() {
+  const {dateStr, month} = parisDateParts();
+  let cache = null;
+  try { cache = JSON.parse(localStorage.getItem(RECORDS_CACHE_KEY)); } catch(e) {}
+  if (cache && cache.date === dateStr && cache.month === month) return cache;
+
+  const notToday = 'DATE(obsTimeUtc,"Europe/Paris") < CURRENT_DATE("Europe/Paris")';
+  const monthFilter = ` AND EXTRACT(MONTH FROM DATE(obsTimeUtc,"Europe/Paris")) = ${month}`;
+
+  function qReading(col, extraWhere, order, monthly) {
+    return `SELECT ${col} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE ${notToday}${extraWhere||''}${monthly?monthFilter:''} ORDER BY val ${order} LIMIT 10`;
+  }
+  function qDaily(agg, extraWhere, order, monthly, minCount) {
+    const having = minCount ? ` HAVING COUNT(*)>=${minCount}` : '';
+    return `SELECT val FROM (SELECT ${agg} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE ${notToday}${extraWhere||''}${monthly?monthFilter:''} GROUP BY DATE(obsTimeUtc,"Europe/Paris")${having}) ORDER BY val ${order} LIMIT 10`;
+  }
+
+  const jobs = {};
+  ['all','month'].forEach(scope => {
+    const m = scope === 'month';
+    jobs['temp_max_'+scope]   = qDaily('MAX(tempHigh)', '', 'DESC', m, null);
+    jobs['temp_min_'+scope]   = qDaily('MIN(tempLow)', '', 'ASC', m, null);
+    jobs['temp_moy_'+scope]   = qDaily('AVG(tempAvg)', '', 'DESC', m, 280);
+    jobs['amplitude_'+scope]  = qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'DESC', m, 280);
+    jobs['pluie_jour_'+scope] = qDaily('SUM(somme)', ' AND precipRate<150', 'DESC', m, null);
+    jobs['vent_moy_'+scope]   = qDaily('AVG(windspeedAvg)', '', 'DESC', m, null);
+    jobs['intensite_'+scope]  = qReading('precipRate', ' AND precipRate<150', 'DESC', m);
+    jobs['rafale_'+scope]     = qReading('windgustHigh', '', 'DESC', m);
+  });
+
+  const keys = Object.keys(jobs);
+  try {
+    const results = await Promise.all(keys.map(k => queryBQ(jobs[k])));
+    const data = {};
+    keys.forEach((k,i) => { data[k] = parseRows(results[i]).map(r=>n(r.val)).filter(v=>v!==null); });
+    cache = {date: dateStr, month, data};
+    try { localStorage.setItem(RECORDS_CACHE_KEY, JSON.stringify(cache)); } catch(e) {}
+  } catch(e) {
+    cache = {date: dateStr, month, data: {}};
+  }
+  return cache;
+}
+
+function computeRank(list, value, asc) {
+  if (value === null || value === undefined || !isFinite(value) || !list || !list.length) return null;
+  const better = list.filter(v => asc ? v < value : v > value).length;
+  const rank = better + 1;
+  return rank <= 10 ? rank : null;
+}
+
+function rankBadge(rank, scopeLabel) {
+  if (!rank) return '';
+  const cls = rank===1 ? 'rec-1' : rank<=3 ? 'rec-3' : 'rec-10';
+  const icon = rank===1 ? '🥇' : rank<=3 ? '🏆' : '🏅';
+  return ` <span class="rec-badge ${cls}">${icon} #${rank} ${scopeLabel}</span>`;
+}
+
+function recordBadge(recCache, key, value, asc) {
+  const rMonth = computeRank((recCache.data||{})[key+'_month'], value, asc);
+  const rAll = computeRank((recCache.data||{})[key+'_all'], value, asc);
+  return rankBadge(rMonth, 'mois') + rankBadge(rAll, 'all-time');
 }
 
 function makeChart(id, type, labels, datasets, opts={}) {
@@ -344,7 +420,7 @@ function buildHourlyTable(rows) {
 
 async function loadData() {
   try {
-    const [kpiRes, lastRes, extremesRes, chartRes, hourRes] = await Promise.all([
+    const [kpiRes, lastRes, extremesRes, chartRes, hourRes, recCache, cumulRes] = await Promise.all([
       queryBQ(`
         SELECT
           MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
@@ -405,12 +481,19 @@ async function loadData() {
         FROM \`meteo_cintre.raw_data_v2\`
         WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris')
         GROUP BY heure ORDER BY heure ASC
+      `),
+      getRecordsCache(),
+      queryBQ(`
+        SELECT
+          (SELECT SUM(somme) FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc,'Europe/Paris') >= DATE_TRUNC(CURRENT_DATE('Europe/Paris'), MONTH)) AS pluie_mois,
+          (SELECT SUM(somme) FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc,'Europe/Paris') >= DATE_TRUNC(CURRENT_DATE('Europe/Paris'), YEAR)) AS pluie_annee
       `)
     ]);
 
     const k = parseRows(kpiRes)[0] || {};
     const last = parseRows(lastRes)[0] || {};
     const ex = parseRows(extremesRes)[0] || {};
+    const cumul = parseRows(cumulRes)[0] || {};
     const rows = parseRows(chartRes);
     rawRows = rows;
     hourlyRows = parseRows(hourRes);
@@ -439,6 +522,16 @@ async function loadData() {
     const _ecartMin = _ecart(n(k.temp_min), _nr.tmin);
     const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
 
+    const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false);
+    const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true);
+    const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false);
+    const deltaVal = (n(k.temp_max)!==null && n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)) : null;
+    const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false);
+    const bPluieJour = recordBadge(recCache, 'pluie_jour', n(k.pluie_total), false);
+    const bIntensite = recordBadge(recCache, 'intensite', n(k.pluie_rate_max), false);
+    const bRafale = recordBadge(recCache, 'rafale', n(k.vent_rafale_max), false);
+    const bVentMoy = recordBadge(recCache, 'vent_moy_jour', n(k.vent_moy_jour), false);
+
     document.getElementById('app').innerHTML = `
       <div class="header">
         <div class="header-top">
@@ -456,10 +549,10 @@ async function loadData() {
           <div class="main-temp-label">Température actuelle</div>
           <div class="main-temp-value">${fmt(tempActuelle)}<sup>°C</sup></div>
           <div class="main-temp-meta">
-            <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C${_ecartMax}</b><span>${ex.heure_temp_max||'—'}</span></div>
-            <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C${_ecartMin}</b><span>${ex.heure_temp_min||'—'}</span></div>
-            <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C${_ecartMoy}</b></div>
-            <div class="meta-item"><b>Δ ${delta}°C</b></div>
+            <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C${_ecartMax}${bTempMax}</b><span>${ex.heure_temp_max||'—'}</span></div>
+            <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C${_ecartMin}${bTempMin}</b><span>${ex.heure_temp_min||'—'}</span></div>
+            <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C${_ecartMoy}${bTempMoy}</b></div>
+            <div class="meta-item"><b>Δ ${delta}°C${bAmplitude}</b></div>
           </div>
           <div style="font-size:9px;color:#ccc;margin-top:5px;line-height:1.4;">
             Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)
@@ -471,18 +564,20 @@ async function loadData() {
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon blue">🌧️</div><div class="kpi-card-title">Pluie du jour</div></div>
-          <div class="kpi-card-value">${fmt(k.pluie_total)}<span class="kpi-card-unit"> mm</span></div>
+          <div class="kpi-card-value">${fmt(k.pluie_total)}<span class="kpi-card-unit"> mm</span>${bPluieJour}</div>
           <div class="kpi-sub-grid">
-            <div class="kpi-sub-item"><b>${fmt(k.pluie_rate_max)} mm/h</b><span>Intensité max</span></div>
+            <div class="kpi-sub-item"><b>${fmt(k.pluie_rate_max)} mm/h${bIntensite}</b><span>Intensité max</span></div>
             <div class="kpi-sub-item"><b>${ex.heure_pluie_max||'—'}</b><span>heure max</span></div>
+            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_mois))} mm</b><span>Cumul du mois</span></div>
+            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_annee))} mm</b><span>Cumul de l'année</span></div>
           </div>
         </div>
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div>
           <div class="kpi-card-value">${fmt(n(last.vent_actuel),1)}<span class="kpi-card-unit"> km/h</span></div>
           <div class="kpi-sub-grid">
-            <div class="kpi-sub-item"><b>${fmt(k.vent_moy_jour,1)} km/h</b><span>Moy journée</span></div>
-            <div class="kpi-sub-item"><b>${fmt(k.vent_rafale_max)} km/h</b><span>Rafale max (56s)</span></div>
+            <div class="kpi-sub-item"><b>${fmt(k.vent_moy_jour,1)} km/h${bVentMoy}</b><span>Moy journée</span></div>
+            <div class="kpi-sub-item"><b>${fmt(k.vent_rafale_max)} km/h${bRafale}</b><span>Rafale max (56s)</span></div>
             <div class="kpi-sub-item"><b>${ex.heure_vent_max||'—'}</b><span>heure rafale max</span></div>
           </div>
         </div>
