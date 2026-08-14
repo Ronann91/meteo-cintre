@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Météo — Cintré | Coûts BigQuery</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+.top-bar { background: linear-gradient(135deg, #0ba360 0%, #1f6f5c 100%); padding: 14px 16px 26px; color: white; }
+.top-bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.top-bar-title { font-size: 18px; font-weight: 700; }
+.top-bar-sub { font-size: 11px; opacity: 0.75; }
+.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.day-picker-group { display: flex; align-items: center; gap: 6px; }
+.day-input { background: rgba(255,255,255,0.15); border: none; border-radius: 10px; padding: 3px 8px; font-size: 10px; color: white; }
+.day-input::-webkit-calendar-picker-indicator { filter: invert(1); }
+.kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
+.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card.full { grid-column: span 2; }
+.kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.kpi-icon.green { background: #e6f9f3; } .kpi-icon.amber { background: #fff8e6; } .kpi-icon.blue { background: #e8f4ff; } .kpi-icon.red { background: #fff0ee; }
+.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
+.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: #555; font-weight: 500; }
+.gauge-wrap { margin-top: 10px; }
+.gauge-bar { height: 8px; border-radius: 4px; background: #f0f0f0; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.gauge-label { font-size: 10px; color: #bbb; margin-top: 4px; display: flex; justify-content: space-between; }
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
+.range-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.range-btn { background: #eee; border: none; border-radius: 12px; padding: 4px 10px; font-size: 10px; font-weight: 700; color: #999; cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em; }
+.range-btn.active { background: #0ba360; color: white; }
+.range-btn-dark { background: rgba(255,255,255,0.15); border: none; border-radius: 10px; padding: 3px 10px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.75); cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em; }
+.range-btn-dark.active { background: white; color: #0ba360; }
+.custom-range-row { display: flex; align-items: center; gap: 6px; margin: 0 16px 10px; flex-wrap: wrap; }
+.custom-range-row input[type=date] { border: 1px solid #eee; border-radius: 8px; padding: 4px 8px; font-size: 11px; color: #555; background: white; }
+.custom-range-row .sep { font-size: 10px; color: #bbb; }
+.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.table-section { padding: 0 16px 10px; }
+.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th:first-child { text-align: left; padding-left: 12px; }
+tbody tr { border-bottom: 0.5px solid #f5f5f5; }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 600; color: #0ba360; }
+.badge-cache { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: #e6f9f3; color: #0f9b8e; }
+.note { font-size: 10px; color: #bbb; padding: 4px 16px 20px; line-height: 1.6; }
+.def-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.def-item { padding: 8px 0; border-bottom: 0.5px solid #f5f5f5; }
+.def-item:last-child { border-bottom: none; }
+.def-term { font-size: 12px; font-weight: 700; color: #1a1a2e; margin-bottom: 3px; }
+.def-text { font-size: 11px; color: #666; line-height: 1.5; }
+.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
+.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #0ba360; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+@keyframes spin { to { transform: rotate(360deg); } }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav a.active { color: #0ba360; font-weight: 600; }
+.pb { padding-bottom: 80px; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="top-bar-row">
+    <div>
+      <div style="font-size:11px;opacity:0.75;">📍 mystic-aileron-471209-p6</div>
+      <div class="top-bar-title">💰 Coûts BigQuery</div>
+    </div>
+    <button class="refresh-btn" onclick="loadAll()">↻ Actualiser</button>
+  </div>
+  <div class="top-bar-row" style="margin-top:4px;">
+    <div class="top-bar-sub">Vue INFORMATION_SCHEMA.JOBS_BY_PROJECT</div>
+    <div class="day-picker-group">
+      <input type="date" id="day-picker" class="day-input" onchange="setDay(this.value)">
+      <button class="range-btn-dark" id="day-today-btn" onclick="resetToday()">Aujourd'hui</button>
+    </div>
+  </div>
+</div>
+
+<div id="main-loading"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
+<div id="main-content"></div>
+
+<div id="chart-loading"><div class="loading"><div class="spinner"></div>Chargement du graphique...</div></div>
+<div id="chart-content" class="pb"></div>
+
+<nav>
+  <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
+  <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
+  <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
+  <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
+  <a href="climat.html"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="couts.html" class="active"><span style="font-size:20px;">💰</span>Coûts</a>
+</nav>
+<script>
+const PROXY_URL = "https://europe-west9-mystic-aileron-471209-p6.cloudfunctions.net/query-proxy-meteo";
+const BQ_REGION = "region-europe-west9"; // doit matcher schema.sql: location = 'europe-west9'
+const JOBS_VIEW = "`"+BQ_REGION+"`.INFORMATION_SCHEMA.JOBS_BY_PROJECT";
+
+// Tarif on-demand BigQuery -- à ajuster si la grille tarifaire change
+// (cloud.google.com/bigquery/pricing). Ne reflète pas d'éventuelle remise
+// négociée additionnelle ni la conversion USD→EUR de la facture réelle.
+const PRICE_PER_TIB_USD = 6.25;
+const FREE_TIER_TIB_MONTH = 1; // 1 TiB de scan offert par mois (palier gratuit BigQuery on-demand)
+const QUOTA_GO_JOUR = 30; // quota BigQuery custom du projet (gcloud alpha services quota), aligné sur le palier gratuit
+const MAX_MO_PAR_REQUETE = 500; // maximum_bytes_billed dans query-proxy/main.py -- plafond dur par requête
+const MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+let charts = {};
+
+// Le "jour sélectionné" pilote toute la page SAUF le graphique (qui a son propre sélecteur de plage).
+let selectedDay = null; // 'YYYY-MM-DD' ou null = aujourd'hui
+
+// Le graphique a sa propre plage, indépendante du jour sélectionné ci-dessus.
+let chartMode = 'preset'; // 'preset' | 'custom'
+let chartRangeDays = 30;
+let chartCustomFrom = null;
+let chartCustomTo = null;
+
+function isValidDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
+function todayIso() { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtFr(iso) { const [y,m,d] = iso.split('-'); return d+'/'+m+'/'+y; }
+function moisLabel(iso) {
+  if (!iso) { const d = new Date(); return MOIS_FR[d.getMonth()]+' '+d.getFullYear(); }
+  const [y,m] = iso.split('-');
+  return MOIS_FR[parseInt(m,10)-1]+' '+y;
+}
+function dayRefSql() { return isValidDate(selectedDay) ? "DATE('"+selectedDay+"')" : "CURRENT_DATE('Europe/Paris')"; }
+
+function setDay(v) {
+  selectedDay = isValidDate(v) ? v : null;
+  loadMain();
+}
+function resetToday() {
+  selectedDay = null;
+  document.getElementById('day-picker').value = '';
+  loadMain();
+}
+
+function setChartPreset(d) {
+  chartMode = 'preset';
+  chartRangeDays = d;
+  loadChart();
+}
+function applyCustomRange() {
+  const from = document.getElementById('chart-from').value;
+  const to = document.getElementById('chart-to').value;
+  if (!isValidDate(from) || !isValidDate(to)) return;
+  chartMode = 'custom';
+  chartCustomFrom = from;
+  chartCustomTo = to;
+  loadChart();
+}
+function chartRangeLabel() {
+  return chartMode === 'custom' ? fmtFr(chartCustomFrom)+' → '+fmtFr(chartCustomTo) : chartRangeDays+' derniers jours';
+}
+function chartDateWhereSql() {
+  if (chartMode === 'custom' && isValidDate(chartCustomFrom) && isValidDate(chartCustomTo)) {
+    return "DATE(creation_time,'Europe/Paris') BETWEEN DATE('"+chartCustomFrom+"') AND DATE('"+chartCustomTo+"')";
+  }
+  return "DATE(creation_time,'Europe/Paris') >= DATE_SUB(CURRENT_DATE('Europe/Paris'), INTERVAL "+chartRangeDays+" DAY)";
+}
+
+// Coût au-delà du palier gratuit mensuel (1 TiB), pas de coût sur les Go offerts.
+function coutApresPalier(tibCumule) {
+  return Math.max(0, tibCumule - FREE_TIER_TIB_MONTH) * PRICE_PER_TIB_USD;
+}
+
+async function queryBQ(sql) {
+  const r = await fetch(PROXY_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:sql})});
+  const d = await r.json();
+  if (d.error) { const err = new Error(d.error); err.quotaExceeded = !!d.quotaExceeded; throw err; }
+  return d;
+}
+
+function parseRows(res) {
+  if (!res.rows) return [];
+  const f = res.schema.fields.map(f=>f.name);
+  return res.rows.map(r=>{const o={};r.f.forEach((v,i)=>o[f[i]]=v.v);return o;});
+}
+
+function n(v) { return (v!==null&&v!==''&&v!==undefined) ? parseFloat(v) : null; }
+function fmt(v, d=1) { return (v!==null&&v!==undefined&&!isNaN(v)) ? parseFloat(v).toFixed(d) : '—'; }
+
+function gaugeColor(pct) {
+  if (pct >= 90) return '#e53e3e';
+  if (pct >= 60) return '#e8a020';
+  return '#0ba360';
+}
+function gaugeIconClass(pct) {
+  if (pct >= 90) return 'red';
+  if (pct >= 60) return 'amber';
+  return 'green';
+}
+function errorMsg(e) {
+  return e.quotaExceeded ? '☁️ Plus de Go pour aujourd\'hui — quota quotidien BigQuery atteint, réessaie demain.' : '⚠️ '+e.message;
+}
+
+function loadAll() {
+  loadMain();
+  loadChart();
+}
+
+async function loadMain() {
+  document.getElementById('day-picker').max = todayIso();
+  document.getElementById('day-today-btn').classList.toggle('active', !selectedDay);
+
+  document.getElementById('main-loading').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>';
+  document.getElementById('main-content').innerHTML = '';
+
+  const ref = dayRefSql();
+  const jourLabel = selectedDay ? fmtFr(selectedDay) : "aujourd'hui";
+
+  const qToday = "SELECT COUNT(*) AS nb, SUM(total_bytes_processed) AS traite, SUM(total_bytes_billed) AS facture, COUNTIF(cache_hit) AS nb_cache, MAX(total_bytes_billed) AS max_billed FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') = "+ref+" AND job_type='QUERY' AND state='DONE'";
+  const qMonth = "SELECT COUNT(*) AS nb, SUM(total_bytes_billed) AS facture FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') >= DATE_TRUNC("+ref+", MONTH) AND DATE(creation_time,'Europe/Paris') <= "+ref+" AND job_type='QUERY' AND state='DONE'";
+
+  try {
+    const [resToday, resMonth] = await Promise.all([queryBQ(qToday), queryBQ(qMonth)]);
+
+    const today = parseRows(resToday)[0] || {};
+    const month = parseRows(resMonth)[0] || {};
+
+    const nbToday = n(today.nb) || 0;
+    const goTraiteToday = (n(today.traite) || 0) / (1024**3);
+    const goFactureToday = (n(today.facture) || 0) / (1024**3);
+    const nbCacheToday = n(today.nb_cache) || 0;
+    const pctQuota = QUOTA_GO_JOUR > 0 ? Math.min(100, (goFactureToday / QUOTA_GO_JOUR) * 100) : 0;
+    const moMaxRequeteToday = (n(today.max_billed) || 0) / (1024**2);
+    const pctPlafondRequete = MAX_MO_PAR_REQUETE > 0 ? Math.min(100, (moMaxRequeteToday / MAX_MO_PAR_REQUETE) * 100) : 0;
+
+    const nbMonth = n(month.nb) || 0;
+    const goFactureMonth = (n(month.facture) || 0) / (1024**3);
+    const tibFactureMonth = goFactureMonth / 1024;
+    const tibFactureAvantJour = Math.max(0, tibFactureMonth - (goFactureToday / 1024));
+    // Coût du jour = coût cumulé du mois jusqu'au jour sélectionné inclus - coût cumulé sans ce jour,
+    // pour ne facturer que la part de ce jour qui dépasse le palier gratuit déjà consommé.
+    const coutMonth = coutApresPalier(tibFactureMonth);
+    const coutToday = coutMonth - coutApresPalier(tibFactureAvantJour);
+
+    const goPalierGratuit = FREE_TIER_TIB_MONTH * 1024;
+    const pctPalierGratuit = Math.min(100, (goFactureMonth / goPalierGratuit) * 100);
+    const goRestantAvantPayer = Math.max(0, goPalierGratuit - goFactureMonth);
+
+    const html = `
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon blue">🔎</div><div class="kpi-card-title">Requêtes (${jourLabel})</div></div>
+          <div class="kpi-card-value">${nbToday}</div>
+          <div class="kpi-sub-single">dont <b>${nbCacheToday}</b> servies depuis le cache (gratuites)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon amber">💵</div><div class="kpi-card-title">Coût estimé (${jourLabel})</div></div>
+          <div class="kpi-card-value">$${fmt(coutToday,3)}</div>
+          <div class="kpi-sub-single">Coût du jour sélectionné (${jourLabel}) au-delà du palier gratuit (voir 💳 plus bas). Si le palier n'est pas dépassé, c'est $0.</div>
+        </div>
+        <div class="kpi-card full">
+          <div class="kpi-card-header"><div class="kpi-icon green">📦</div><div class="kpi-card-title">Volume facturé (${jourLabel})</div></div>
+          <div class="kpi-card-value">${fmt(goFactureToday)}<span class="kpi-card-unit"> Go</span></div>
+          <div class="kpi-sub-single">Scanné avant dédup cache : <b>${fmt(goTraiteToday)} Go</b></div>
+        </div>
+      </div>
+
+      <div class="section-header">🛡️ Sécurité — garde-fous en place</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon ${gaugeIconClass(pctQuota)}">📊</div><div class="kpi-card-title">Quota journalier</div></div>
+          <div class="kpi-card-value">${fmt(pctQuota,1)}<span class="kpi-card-unit">%</span></div>
+          <div class="gauge-wrap">
+            <div class="gauge-bar"><div class="gauge-fill" style="width:${pctQuota}%;background:${gaugeColor(pctQuota)};"></div></div>
+            <div class="gauge-label"><span>${fmt(goFactureToday)} Go</span><span>${QUOTA_GO_JOUR} Go/jour max</span></div>
+          </div>
+          <div class="kpi-sub-single">Limite qu'on a fixée nous-mêmes : si le projet lit plus de ${QUOTA_GO_JOUR} Go en une journée, BigQuery bloque tout, même les requêtes qu'on autorise normalement. Sert à éviter qu'un bug ne fasse exploser la facture.</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon ${gaugeIconClass(pctPlafondRequete)}">🔒</div><div class="kpi-card-title">Plafond par requête</div></div>
+          <div class="kpi-card-value">${fmt(pctPlafondRequete,1)}<span class="kpi-card-unit">%</span></div>
+          <div class="gauge-wrap">
+            <div class="gauge-bar"><div class="gauge-fill" style="width:${pctPlafondRequete}%;background:${gaugeColor(pctPlafondRequete)};"></div></div>
+            <div class="gauge-label"><span>${fmt(moMaxRequeteToday)} Mo (max, ${jourLabel})</span><span>${MAX_MO_PAR_REQUETE} Mo/requête max</span></div>
+          </div>
+          <div class="kpi-sub-single">Autre limite fixée nous-mêmes, mais par requête individuelle cette fois : une seule requête ne peut jamais lire plus de ${MAX_MO_PAR_REQUETE} Mo, même si elle est mal écrite. Ici on affiche la requête la plus grosse du jour sélectionné, très loin du plafond.</div>
+        </div>
+      </div>
+
+      <div class="section-header">💳 Avant de payer</div>
+      <div class="kpi-grid">
+        <div class="kpi-card full">
+          <div class="kpi-card-header"><div class="kpi-icon ${gaugeIconClass(pctPalierGratuit)}">🆓</div><div class="kpi-card-title">Palier gratuit mensuel consommé</div></div>
+          <div class="kpi-card-value">${fmt(pctPalierGratuit,1)}<span class="kpi-card-unit">%</span></div>
+          <div class="kpi-sub-single"><b>${fmt(goRestantAvantPayer)} Go</b> restants avant de commencer à payer</div>
+          <div class="gauge-wrap">
+            <div class="gauge-bar"><div class="gauge-fill" style="width:${pctPalierGratuit}%;background:${gaugeColor(pctPalierGratuit)};"></div></div>
+            <div class="gauge-label"><span>${fmt(goFactureMonth)} Go facturés</span><span>${goPalierGratuit} Go offerts/mois</span></div>
+          </div>
+          <div class="kpi-sub-single">Ce n'est pas nous qui fixons cette limite, c'est Google : chaque mois, les ${goPalierGratuit} premiers Go lus par BigQuery sont gratuits pour tout le monde. Les cartes "Coût estimé" ci-dessus en tiennent déjà compte : tant que cette jauge n'atteint pas 100%, elles affichent $0.</div>
+        </div>
+      </div>
+
+      <div class="section-header">📆 ${moisLabel(selectedDay)}</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon green">📦</div><div class="kpi-card-title">Volume facturé</div></div>
+          <div class="kpi-card-value">${fmt(goFactureMonth)}<span class="kpi-card-unit"> Go</span></div>
+          <div class="kpi-sub-single">${nbMonth} requêtes depuis le 1er du mois jusqu'au ${jourLabel}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header"><div class="kpi-icon amber">💵</div><div class="kpi-card-title">Coût estimé mois</div></div>
+          <div class="kpi-card-value">$${fmt(coutMonth,2)}</div>
+          <div class="kpi-sub-single">Cumul depuis le 1er du mois jusqu'au ${jourLabel}, déjà net du palier gratuit (${goPalierGratuit} Go). C'est ce chiffre-ci qui se rapproche le plus de la vraie facture Google Cloud.</div>
+        </div>
+      </div>
+
+      <div class="section-header">ℹ️ Lexique — c'est quoi ces mots ?</div>
+      <div class="def-card">
+        <div class="def-item">
+          <div class="def-term">Requête</div>
+          <div class="def-text">Chaque fois qu'une page du site (index, bilan, climat...) va chercher des données dans BigQuery pour s'afficher, ça compte comme une requête.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Cache</div>
+          <div class="def-text">Si on refait exactement la même question à BigQuery sans que les données aient changé, il renvoie le résultat qu'il avait déjà calculé — sans rescanner, donc gratuitement.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Scanné vs Facturé</div>
+          <div class="def-text">"Scanné" = la quantité de données que BigQuery a dû lire pour répondre. "Facturé" = ce qui compte vraiment pour le prix (0 si la réponse venait du cache). Le facturé est donc toujours ≤ au scanné.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Jour sélectionné</div>
+          <div class="def-text">Le sélecteur de date en haut de page change le jour affiché sur toute la page (requêtes, coût, sécurité, mois) — sauf le graphique plus bas, qui a sa propre plage indépendante.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Quota journalier / Plafond par requête</div>
+          <div class="def-text">Deux limites de sécurité qu'on a nous-mêmes mises en place (pas Google) : une par jour pour tout le projet, une par requête individuelle. Elles bloquent toute lecture anormale avant qu'elle ne coûte quoi que ce soit.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Palier gratuit</div>
+          <div class="def-text">Une limite fixée par Google, cette fois : chaque mois, les ${goPalierGratuit} premiers Go lus par BigQuery sont offerts à tout le monde, gratuitement. Rien à voir avec nos propres garde-fous ci-dessus.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Coût estimé</div>
+          <div class="def-text">Une projection au tarif public (${PRICE_PER_TIB_USD}$ par To lu), calculée uniquement sur ce qui dépasse le palier gratuit — le calcul en tient déjà compte. Tant que le palier n'est pas dépassé, ces cartes affichent $0, ce qui correspond au vrai montant prélevé.</div>
+        </div>
+      </div>
+
+      <div class="note">
+        Estimation basée sur le tarif on-demand BigQuery public (${PRICE_PER_TIB_USD}$/TiB), après déduction du palier gratuit mensuel de ${FREE_TIER_TIB_MONTH} TiB de scan offert. Ne tient pas compte d'éventuelles remises négociées additionnelles ni de la conversion USD→EUR de la facture réelle. Les requêtes servies depuis le cache de résultats sont facturées 0 octet. Cette vue ne couvre que BigQuery — Cloud Functions et Cloud Scheduler restent en free tier et ne sont pas suivis ici.
+      </div>
+    `;
+
+    document.getElementById('main-loading').innerHTML = '';
+    document.getElementById('main-content').innerHTML = html;
+
+  } catch(e) {
+    document.getElementById('main-loading').innerHTML = '';
+    document.getElementById('main-content').innerHTML = '<div class="error">'+errorMsg(e)+'</div>';
+  }
+}
+
+async function loadChart() {
+  document.getElementById('chart-loading').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement du graphique...</div>';
+  document.getElementById('chart-content').innerHTML = '';
+
+  const qDaily = "SELECT DATE(creation_time,'Europe/Paris') AS jour, COUNT(*) AS nb, SUM(total_bytes_billed) AS facture FROM "+JOBS_VIEW+" WHERE "+chartDateWhereSql()+" AND job_type='QUERY' AND state='DONE' GROUP BY jour ORDER BY jour";
+  const qTop10 = "SELECT FORMAT_TIMESTAMP('%d/%m %H:%M', creation_time, 'Europe/Paris') AS quand, total_bytes_billed AS billed, cache_hit AS cache, user_email AS qui FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') >= DATE_SUB(CURRENT_DATE('Europe/Paris'), INTERVAL 30 DAY) AND job_type='QUERY' AND state='DONE' ORDER BY total_bytes_billed DESC LIMIT 10";
+
+  try {
+    const [resDaily, resTop10] = await Promise.all([queryBQ(qDaily), queryBQ(qTop10)]);
+
+    const daily = parseRows(resDaily);
+    const top10 = parseRows(resTop10);
+
+    const now = new Date();
+    const joursDansMois = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const goPalierGratuitParJour = (FREE_TIER_TIB_MONTH*1024) / joursDansMois;
+
+    const html = `
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <span>📊 Volume &amp; requêtes — ${chartRangeLabel()}</span>
+        <div class="range-group">
+          <button class="range-btn ${chartMode==='preset'&&chartRangeDays===7?'active':''}" onclick="setChartPreset(7)">7j</button>
+          <button class="range-btn ${chartMode==='preset'&&chartRangeDays===30?'active':''}" onclick="setChartPreset(30)">30j</button>
+          <button class="range-btn ${chartMode==='preset'&&chartRangeDays===90?'active':''}" onclick="setChartPreset(90)">90j</button>
+        </div>
+      </div>
+      <div class="custom-range-row">
+        <input type="date" id="chart-from" value="${chartCustomFrom||''}" max="${todayIso()}">
+        <span class="sep">→</span>
+        <input type="date" id="chart-to" value="${chartCustomTo||''}" max="${todayIso()}">
+        <button class="range-btn ${chartMode==='custom'?'active':''}" onclick="applyCustomRange()">Plage perso</button>
+      </div>
+      <div class="chart-card">
+        <canvas id="cVolume"></canvas>
+        <div class="kpi-sub-single" style="margin-top:10px;">Lignes en pointillés : les deux plafonds vus plus haut, pour comparer le volume réel aux limites. <span style="color:#e53e3e;">Rouge</span> = notre garde-fou (${QUOTA_GO_JOUR} Go/j). <span style="color:#0f9b8e;">Vert</span> = moyenne du palier gratuit Google réparti sur le mois (~${fmt(goPalierGratuitParJour)} Go/j).</div>
+      </div>
+
+      <div class="section-header">🏅 Top 10 requêtes les plus coûteuses (30j)</div>
+      <div class="table-section">
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Quand</th><th>Go facturés</th><th>Cache</th><th>Compte</th></tr></thead>
+              <tbody>
+                ${top10.map(function(r){
+                  const isCache = r.cache === 'true' || r.cache === true;
+                  const go = (n(r.billed)||0)/(1024**3);
+                  return '<tr><td>'+r.quand+'</td><td>'+fmt(go,3)+' Go</td><td>'+(isCache?'<span class="badge-cache">cache</span>':'—')+'</td><td style="font-size:10px;">'+(r.qui||'—')+'</td></tr>';
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('chart-loading').innerHTML = '';
+    document.getElementById('chart-content').innerHTML = html;
+
+    const labels = daily.map(r => r.jour);
+    if (charts['cVolume']) charts['cVolume'].destroy();
+    const ctx = document.getElementById('cVolume').getContext('2d');
+    charts['cVolume'] = new Chart(ctx, {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Go facturés',
+            data: daily.map(r => parseFloat(((n(r.facture)||0)/(1024**3)).toFixed(3))),
+            backgroundColor: 'rgba(11,163,96,0.55)',
+            borderColor: 'rgba(11,163,96,0.8)',
+            borderWidth: 1,
+            borderRadius: 2,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: 'Nb requêtes',
+            data: daily.map(r => n(r.nb)),
+            borderColor: '#1a1a2e',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 1.5,
+            yAxisID: 'yNb'
+          },
+          {
+            type: 'line',
+            label: 'Garde-fou quota ('+QUOTA_GO_JOUR+' Go/j)',
+            data: labels.map(() => QUOTA_GO_JOUR),
+            borderColor: '#e53e3e',
+            backgroundColor: 'transparent',
+            borderDash: [6,4],
+            borderWidth: 1,
+            pointRadius: 0,
+            yAxisID: 'y'
+          },
+          {
+            type: 'line',
+            label: 'Moyenne palier gratuit ('+fmt(goPalierGratuitParJour)+' Go/j)',
+            data: labels.map(() => goPalierGratuitParJour),
+            borderColor: '#0f9b8e',
+            backgroundColor: 'transparent',
+            borderDash: [2,3],
+            borderWidth: 1,
+            pointRadius: 0,
+            yAxisID: 'y'
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 1.4, animation: false,
+        plugins: {
+          legend: {display: true, labels: {color:'#999', font:{size:10}, boxWidth:10, padding:6}},
+          tooltip: {mode:'index', intersect:false}
+        },
+        scales: {
+          x: {ticks:{color:'#ccc',font:{size:9},maxTicksLimit:10}, grid:{color:'rgba(0,0,0,0.03)'}},
+          y: {position:'left', ticks:{color:'#0ba360',font:{size:9}}, grid:{color:'rgba(0,0,0,0.03)'}, beginAtZero:true, title:{display:true,text:'Go',color:'#0ba360',font:{size:9}}},
+          yNb: {position:'right', ticks:{color:'#999',font:{size:9}}, grid:{drawOnChartArea:false}, beginAtZero:true, title:{display:true,text:'requêtes',color:'#999',font:{size:9}}}
+        }
+      }
+    });
+
+  } catch(e) {
+    document.getElementById('chart-loading').innerHTML = '';
+    document.getElementById('chart-content').innerHTML = '<div class="error">'+errorMsg(e)+'</div>';
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>

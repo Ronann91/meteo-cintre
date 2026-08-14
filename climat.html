@@ -108,6 +108,7 @@ nav a.active { color: #11998e; font-weight: 600; }
   <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
   <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
   <a href="climat.html" class="active"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="couts.html"><span style="font-size:20px;">💰</span>Coûts</a>
 </nav>
 
 <script>
@@ -188,7 +189,7 @@ async function queryBQ(sql){
     body:JSON.stringify({query:sql})
   });
   const d=await r.json();
-  if(d.error)throw new Error(d.error);
+  if(d.error){ const err=new Error(d.error); err.quotaExceeded=!!d.quotaExceeded; throw err; }
   return d;
 }
 
@@ -332,7 +333,8 @@ async function loadData(){
       waitAndRender();
     }).catch(function(e){console.warn('Cumul chart error:', e.message);});
   }catch(e){
-    document.getElementById('tab-climat').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
+    const msg = e.quotaExceeded ? '☁️ Plus de Go pour aujourd\'hui — quota quotidien BigQuery atteint, réessaie demain.' : '⚠️ '+e.message;
+    document.getElementById('tab-climat').innerHTML='<div style="padding:16px"><div class="error">'+msg+'</div></div>';
   }
 }
 

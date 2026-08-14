@@ -85,6 +85,7 @@ nav a.active { color: #e8604c; font-weight: 600; }
   <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
   <a href="records.html" class="active"><span style="font-size:20px;">🏆</span>Records</a>
   <a href="climat.html"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="couts.html"><span style="font-size:20px;">💰</span>Coûts</a>
 </nav>
 <script>
 const PROXY_URL = "https://europe-west9-mystic-aileron-471209-p6.cloudfunctions.net/query-proxy-meteo";
@@ -102,7 +103,7 @@ function selectTab(tab){
 async function queryBQ(sql){
   const r=await fetch(PROXY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:sql})});
   const d=await r.json();
-  if(d.error)throw new Error(d.error);
+  if(d.error){ const err=new Error(d.error); err.quotaExceeded=!!d.quotaExceeded; throw err; }
   return d;
 }
 
@@ -333,7 +334,8 @@ async function loadData(){
     document.getElementById('tab-vent').innerHTML=htmlVent+'<div class="pb"></div>';
 
   }catch(e){
-    document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">⚠️ '+e.message+'</div></div>';
+    const msg = e.quotaExceeded ? '☁️ Plus de Go pour aujourd\'hui — quota quotidien BigQuery atteint, réessaie demain.' : '⚠️ '+e.message;
+    document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">'+msg+'</div></div>';
   }
 }
 buildMonthFilter();

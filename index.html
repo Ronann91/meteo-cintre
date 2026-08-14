@@ -125,7 +125,7 @@ let hourlyRows = [];
 async function queryBQ(sql) {
   const r = await fetch(PROXY_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:sql})});
   const d = await r.json();
-  if(d.error) throw new Error(d.error);
+  if(d.error) { const err = new Error(d.error); err.quotaExceeded = !!d.quotaExceeded; throw err; }
   return d;
 }
 
@@ -162,7 +162,7 @@ function heatColor(val, min, max, type='default') {
   return `background:rgba(100,100,200,${0.08 + ratio*0.3});`;
 }
 
-const RECORDS_CACHE_KEY = 'meteo_records_cache_v2';
+const RECORDS_CACHE_KEY = 'meteo_records_cache_v3';
 
 function parisDateParts() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
@@ -192,6 +192,7 @@ async function getRecordsCache() {
     const m = scope === 'month';
     jobs['temp_max_'+scope]   = qDaily('MAX(tempHigh)', '', 'DESC', m, null);
     jobs['temp_min_'+scope]   = qDaily('MIN(tempLow)', '', 'ASC', m, null);
+    jobs['temp_min_chaud_'+scope] = qDaily('MIN(tempLow)', '', 'DESC', m, null);
     jobs['temp_moy_'+scope]   = qDaily('AVG(tempAvg)', '', 'DESC', m, 280);
     jobs['amplitude_'+scope]  = qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'DESC', m, 280);
     jobs['pluie_jour_'+scope] = qDaily('SUM(somme)', ' AND precipRate<150', 'DESC', m, null);
@@ -523,7 +524,8 @@ async function loadData() {
     const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
 
     const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false);
-    const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true);
+    const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true)
+      + recordBadge(recCache, 'temp_min_chaud', n(k.temp_min), false);
     const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false);
     const deltaVal = (n(k.temp_max)!==null && n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)) : null;
     const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false);
@@ -880,7 +882,7 @@ async function loadData() {
     const _ecartMin = _ecart(n(k.temp_min), _nr.tmin);
     const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
 
-    document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">⚠️ ${e.message}</div></div>`;
+    document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">${e.quotaExceeded ? '☁️ Plus de Go pour aujourd\'hui — quota quotidien BigQuery atteint, réessaie demain.' : '⚠️ '+e.message}</div></div>`;
   }
 }
 
@@ -894,6 +896,7 @@ setInterval(loadData, 5*60*1000);
   <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
   <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
   <a href="climat.html"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="couts.html"><span style="font-size:20px;">💰</span>Coûts</a>
 </nav>
 <div style="height:64px;"></div>
 </body>
