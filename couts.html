@@ -43,17 +43,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
 .chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.table-section { padding: 0 16px 10px; }
-.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
-thead th:first-child { text-align: left; padding-left: 12px; }
-tbody tr { border-bottom: 0.5px solid #f5f5f5; }
-tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
-tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 600; color: #0ba360; }
-.badge-cache { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: #e6f9f3; color: #0f9b8e; }
 .note { font-size: 10px; color: #bbb; padding: 4px 16px 20px; line-height: 1.6; }
 .def-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
 .def-item { padding: 8px 0; border-bottom: 0.5px solid #f5f5f5; }
@@ -223,12 +212,32 @@ async function loadMain() {
 
   const qToday = "SELECT COUNT(*) AS nb, SUM(total_bytes_processed) AS traite, SUM(total_bytes_billed) AS facture, COUNTIF(cache_hit) AS nb_cache, MAX(total_bytes_billed) AS max_billed FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') = "+ref+" AND job_type='QUERY' AND state='DONE'";
   const qMonth = "SELECT COUNT(*) AS nb, SUM(total_bytes_billed) AS facture FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') >= DATE_TRUNC("+ref+", MONTH) AND DATE(creation_time,'Europe/Paris') <= "+ref+" AND job_type='QUERY' AND state='DONE'";
+  const qSplit = "SELECT CASE WHEN user_email LIKE 'meteo-fetcher%' THEN 'structurel' WHEN user_email LIKE 'meteo-viewer%' THEN 'consommation' ELSE 'autre' END AS categorie,"
+    +" COUNTIF(DATE(creation_time,'Europe/Paris') = "+ref+") AS nb_jour,"
+    +" SUM(IF(DATE(creation_time,'Europe/Paris') = "+ref+", total_bytes_billed, 0)) AS facture_jour,"
+    +" COUNT(*) AS nb_mois,"
+    +" SUM(total_bytes_billed) AS facture_mois"
+    +" FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') >= DATE_TRUNC("+ref+", MONTH) AND DATE(creation_time,'Europe/Paris') <= "+ref+" AND job_type='QUERY' AND state='DONE' GROUP BY categorie";
 
   try {
-    const [resToday, resMonth] = await Promise.all([queryBQ(qToday), queryBQ(qMonth)]);
+    const [resToday, resMonth, resSplit] = await Promise.all([queryBQ(qToday), queryBQ(qMonth), queryBQ(qSplit)]);
 
     const today = parseRows(resToday)[0] || {};
     const month = parseRows(resMonth)[0] || {};
+    const splitRows = parseRows(resSplit);
+    const splitByCat = {structurel:{}, consommation:{}, autre:{}};
+    splitRows.forEach(r => { splitByCat[r.categorie] = r; });
+    const goStructurelJour = (n(splitByCat.structurel.facture_jour)||0)/(1024**3);
+    const goConsoJour = (n(splitByCat.consommation.facture_jour)||0)/(1024**3);
+    const goAutreJour = (n(splitByCat.autre.facture_jour)||0)/(1024**3);
+    const goStructurelMois = (n(splitByCat.structurel.facture_mois)||0)/(1024**3);
+    const goConsoMois = (n(splitByCat.consommation.facture_mois)||0)/(1024**3);
+    const goAutreMois = (n(splitByCat.autre.facture_mois)||0)/(1024**3);
+    const nbStructurelJour = n(splitByCat.structurel.nb_jour)||0;
+    const nbConsoJour = n(splitByCat.consommation.nb_jour)||0;
+    const goTotalJourSplit = goStructurelJour + goConsoJour + goAutreJour;
+    const pctStructurelJour = goTotalJourSplit>0 ? (goStructurelJour/goTotalJourSplit)*100 : 0;
+    const pctConsoJour = goTotalJourSplit>0 ? (goConsoJour/goTotalJourSplit)*100 : 0;
 
     const nbToday = n(today.nb) || 0;
     const goTraiteToday = (n(today.traite) || 0) / (1024**3);
@@ -267,6 +276,7 @@ async function loadMain() {
           <div class="kpi-card-header"><div class="kpi-icon green">📦</div><div class="kpi-card-title">Volume facturé (${jourLabel})</div></div>
           <div class="kpi-card-value">${fmt(goFactureToday)}<span class="kpi-card-unit"> Go</span></div>
           <div class="kpi-sub-single">Scanné avant dédup cache : <b>${fmt(goTraiteToday)} Go</b></div>
+          <div class="kpi-sub-single">🏗️ Structurel (chargement) : <b>${fmt(goStructurelJour)} Go</b> (${nbStructurelJour} req., ${fmt(pctStructurelJour,1)}%) &nbsp;·&nbsp; 📈 Consommation (viz) : <b>${fmt(goConsoJour)} Go</b> (${nbConsoJour} req., ${fmt(pctConsoJour,1)}%)${goAutreJour>0 ? ' &nbsp;·&nbsp; ❓ Ancien pipeline : <b>'+fmt(goAutreJour)+' Go</b>' : ''}</div>
         </div>
       </div>
 
@@ -312,6 +322,7 @@ async function loadMain() {
           <div class="kpi-card-header"><div class="kpi-icon green">📦</div><div class="kpi-card-title">Volume facturé</div></div>
           <div class="kpi-card-value">${fmt(goFactureMonth)}<span class="kpi-card-unit"> Go</span></div>
           <div class="kpi-sub-single">${nbMonth} requêtes depuis le 1er du mois jusqu'au ${jourLabel}</div>
+          <div class="kpi-sub-single">🏗️ Structurel : <b>${fmt(goStructurelMois)} Go</b> &nbsp;·&nbsp; 📈 Consommation : <b>${fmt(goConsoMois)} Go</b>${goAutreMois>0 ? ' &nbsp;·&nbsp; ❓ Ancien pipeline : <b>'+fmt(goAutreMois)+' Go</b>' : ''}</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon amber">💵</div><div class="kpi-card-title">Coût estimé mois</div></div>
@@ -333,6 +344,10 @@ async function loadMain() {
         <div class="def-item">
           <div class="def-term">Scanné vs Facturé</div>
           <div class="def-text">"Scanné" = la quantité de données que BigQuery a dû lire pour répondre. "Facturé" = ce qui compte vraiment pour le prix (0 si la réponse venait du cache). Le facturé est donc toujours ≤ au scanné.</div>
+        </div>
+        <div class="def-item">
+          <div class="def-term">Structurel vs Consommation</div>
+          <div class="def-text">"Structurel" = les requêtes de chargement de la donnée : la Cloud Function qui va chercher la météo toutes les 5 min et l'écrit dans BigQuery (compte de service <code>meteo-fetcher</code>) — ce volume est incompressible, il tourne même si personne ne regarde le dashboard. "Consommation" = les requêtes de visualisation déclenchées quand une page du site est ouverte (compte de service <code>meteo-viewer</code>) — ce volume dépend de l'usage du dashboard.</div>
         </div>
         <div class="def-item">
           <div class="def-term">Jour sélectionné</div>
@@ -371,13 +386,21 @@ async function loadChart() {
   document.getElementById('chart-content').innerHTML = '';
 
   const qDaily = "SELECT DATE(creation_time,'Europe/Paris') AS jour, COUNT(*) AS nb, SUM(total_bytes_billed) AS facture FROM "+JOBS_VIEW+" WHERE "+chartDateWhereSql()+" AND job_type='QUERY' AND state='DONE' GROUP BY jour ORDER BY jour";
-  const qTop10 = "SELECT FORMAT_TIMESTAMP('%d/%m %H:%M', creation_time, 'Europe/Paris') AS quand, total_bytes_billed AS billed, cache_hit AS cache, user_email AS qui FROM "+JOBS_VIEW+" WHERE DATE(creation_time,'Europe/Paris') >= DATE_SUB(CURRENT_DATE('Europe/Paris'), INTERVAL 30 DAY) AND job_type='QUERY' AND state='DONE' ORDER BY total_bytes_billed DESC LIMIT 10";
+  const qDailySplit = "SELECT DATE(creation_time,'Europe/Paris') AS jour,"
+    +" CASE WHEN user_email LIKE 'meteo-fetcher%' THEN 'structurel' WHEN user_email LIKE 'meteo-viewer%' THEN 'consommation' ELSE 'autre' END AS categorie,"
+    +" SUM(total_bytes_billed) AS facture"
+    +" FROM "+JOBS_VIEW+" WHERE "+chartDateWhereSql()+" AND job_type='QUERY' AND state='DONE' GROUP BY jour, categorie ORDER BY jour";
 
   try {
-    const [resDaily, resTop10] = await Promise.all([queryBQ(qDaily), queryBQ(qTop10)]);
+    const [resDaily, resDailySplit] = await Promise.all([queryBQ(qDaily), queryBQ(qDailySplit)]);
 
     const daily = parseRows(resDaily);
-    const top10 = parseRows(resTop10);
+    const dailySplit = parseRows(resDailySplit);
+    const splitByDay = {};
+    dailySplit.forEach(r => {
+      if (!splitByDay[r.jour]) splitByDay[r.jour] = {structurel:0, consommation:0, autre:0};
+      splitByDay[r.jour][r.categorie] = (n(r.facture)||0)/(1024**3);
+    });
 
     const now = new Date();
     const joursDansMois = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
@@ -400,25 +423,7 @@ async function loadChart() {
       </div>
       <div class="chart-card">
         <canvas id="cVolume"></canvas>
-        <div class="kpi-sub-single" style="margin-top:10px;">Lignes en pointillés : les deux plafonds vus plus haut, pour comparer le volume réel aux limites. <span style="color:#e53e3e;">Rouge</span> = notre garde-fou (${QUOTA_GO_JOUR} Go/j). <span style="color:#0f9b8e;">Vert</span> = moyenne du palier gratuit Google réparti sur le mois (~${fmt(goPalierGratuitParJour)} Go/j).</div>
-      </div>
-
-      <div class="section-header">🏅 Top 10 requêtes les plus coûteuses (30j)</div>
-      <div class="table-section">
-        <div class="table-card">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Quand</th><th>Go facturés</th><th>Cache</th><th>Compte</th></tr></thead>
-              <tbody>
-                ${top10.map(function(r){
-                  const isCache = r.cache === 'true' || r.cache === true;
-                  const go = (n(r.billed)||0)/(1024**3);
-                  return '<tr><td>'+r.quand+'</td><td>'+fmt(go,3)+' Go</td><td>'+(isCache?'<span class="badge-cache">cache</span>':'—')+'</td><td style="font-size:10px;">'+(r.qui||'—')+'</td></tr>';
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div class="kpi-sub-single" style="margin-top:10px;">Barre empilée : <span style="color:#1d5fd6;">bleu</span> = structurel (chargement), <span style="color:#e8a020;">orange</span> = consommation (viz)${Object.values(splitByDay).some(d=>d.autre>0) ? ', <span style="color:#999;">gris</span> = ancien pipeline' : ''}. Lignes en pointillés : les deux plafonds vus plus haut, pour comparer le volume réel aux limites. <span style="color:#e53e3e;">Rouge</span> = notre garde-fou (${QUOTA_GO_JOUR} Go/j). <span style="color:#0f9b8e;">Vert</span> = moyenne du palier gratuit Google réparti sur le mois (~${fmt(goPalierGratuitParJour)} Go/j).</div>
       </div>
     `;
 
@@ -426,6 +431,7 @@ async function loadChart() {
     document.getElementById('chart-content').innerHTML = html;
 
     const labels = daily.map(r => r.jour);
+    const hasAutre = labels.some(d => (splitByDay[d]||{}).autre > 0);
     if (charts['cVolume']) charts['cVolume'].destroy();
     const ctx = document.getElementById('cVolume').getContext('2d');
     charts['cVolume'] = new Chart(ctx, {
@@ -434,14 +440,37 @@ async function loadChart() {
         datasets: [
           {
             type: 'bar',
-            label: 'Go facturés',
-            data: daily.map(r => parseFloat(((n(r.facture)||0)/(1024**3)).toFixed(3))),
-            backgroundColor: 'rgba(11,163,96,0.55)',
-            borderColor: 'rgba(11,163,96,0.8)',
+            label: 'Structurel (Go)',
+            data: labels.map(d => parseFloat(((splitByDay[d]||{}).structurel||0).toFixed(3))),
+            backgroundColor: 'rgba(29,95,214,0.7)',
+            borderColor: 'rgba(29,95,214,0.9)',
             borderWidth: 1,
             borderRadius: 2,
+            stack: 'volume',
             yAxisID: 'y'
           },
+          {
+            type: 'bar',
+            label: 'Consommation (Go)',
+            data: labels.map(d => parseFloat(((splitByDay[d]||{}).consommation||0).toFixed(3))),
+            backgroundColor: 'rgba(232,160,32,0.7)',
+            borderColor: 'rgba(232,160,32,0.9)',
+            borderWidth: 1,
+            borderRadius: 2,
+            stack: 'volume',
+            yAxisID: 'y'
+          },
+          ...(hasAutre ? [{
+            type: 'bar',
+            label: 'Ancien pipeline (Go)',
+            data: labels.map(d => parseFloat(((splitByDay[d]||{}).autre||0).toFixed(3))),
+            backgroundColor: 'rgba(153,153,153,0.6)',
+            borderColor: 'rgba(153,153,153,0.8)',
+            borderWidth: 1,
+            borderRadius: 2,
+            stack: 'volume',
+            yAxisID: 'y'
+          }] : []),
           {
             type: 'line',
             label: 'Nb requêtes',
