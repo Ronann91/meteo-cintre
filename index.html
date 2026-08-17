@@ -104,18 +104,18 @@ nav a.active { color: #667eea; font-weight: 600; }
 const PROXY_URL = "https://europe-west9-mystic-aileron-471209-p6.cloudfunctions.net/query-proxy-meteo";
 
 const NORMALES_RENNES = {
-  1: {tmin: 3.3, tmax: 9.2, tmoy: 6.0},
-  2: {tmin: 2.9, tmax: 10.3, tmoy: 6.3},
-  3: {tmin: 4.5, tmax: 13.2, tmoy: 8.5},
-  4: {tmin: 6.0, tmax: 16.0, tmoy: 10.7},
-  5: {tmin: 9.3, tmax: 19.3, tmoy: 14.1},
-  6: {tmin: 12.1, tmax: 22.6, tmoy: 17.1},
-  7: {tmin: 13.7, tmax: 24.8, tmoy: 18.9},
-  8: {tmin: 13.7, tmax: 24.8, tmoy: 18.8},
-  9: {tmin: 11.4, tmax: 21.9, tmoy: 16.2},
-  10: {tmin: 9.3, tmax: 17.2, tmoy: 12.8},
-  11: {tmin: 5.9, tmax: 12.5, tmoy: 8.9},
-  12: {tmin: 3.6, tmax: 9.6, tmoy: 6.4},
+  1: {tmin: 3.3, tmax: 9.2, tmoy: 6.0, pr: 66.6},
+  2: {tmin: 2.9, tmax: 10.3, tmoy: 6.3, pr: 51.6},
+  3: {tmin: 4.5, tmax: 13.2, tmoy: 8.5, pr: 48.9},
+  4: {tmin: 6.0, tmax: 16.0, tmoy: 10.7, pr: 51.2},
+  5: {tmin: 9.3, tmax: 19.3, tmoy: 14.1, pr: 58.1},
+  6: {tmin: 12.1, tmax: 22.6, tmoy: 17.1, pr: 50.9},
+  7: {tmin: 13.7, tmax: 24.8, tmoy: 18.9, pr: 44.0},
+  8: {tmin: 13.7, tmax: 24.8, tmoy: 18.8, pr: 43.5},
+  9: {tmin: 11.4, tmax: 21.9, tmoy: 16.2, pr: 56.6},
+  10: {tmin: 9.3, tmax: 17.2, tmoy: 12.8, pr: 73.1},
+  11: {tmin: 5.9, tmax: 12.5, tmoy: 8.9, pr: 73.2},
+  12: {tmin: 3.6, tmax: 9.6, tmoy: 6.4, pr: 73.3},
 };
 
 let charts = {};
@@ -224,17 +224,18 @@ function computeRank(list, value, asc) {
   return rank <= 10 ? rank : null;
 }
 
-function rankBadge(rank, scopeLabel) {
+function rankBadge(rank, scopeLabel, dirIcon) {
   if (!rank) return '';
   const cls = rank===1 ? 'rec-1' : rank<=3 ? 'rec-3' : 'rec-10';
   const icon = rank===1 ? '🥇' : rank<=3 ? '🏆' : '🏅';
-  return ` <span class="rec-badge ${cls}">${icon} #${rank} ${scopeLabel}</span>`;
+  return ` <span class="rec-badge ${cls}">${dirIcon}${icon} #${rank} ${scopeLabel}</span>`;
 }
 
 function recordBadge(recCache, key, value, asc) {
   const rMonth = computeRank((recCache.data||{})[key+'_month'], value, asc);
   const rAll = computeRank((recCache.data||{})[key+'_all'], value, asc);
-  return rankBadge(rMonth, 'mois') + rankBadge(rAll, 'all-time');
+  const dirIcon = asc ? '▼' : '▲'; // ▲ record vers le haut (max) · ▼ record vers le bas (min)
+  return rankBadge(rMonth, 'mois', dirIcon) + rankBadge(rAll, 'all-time', dirIcon);
 }
 
 function makeChart(id, type, labels, datasets, opts={}) {
@@ -526,6 +527,25 @@ async function loadData() {
     const _ecartMin = _ecart(n(k.temp_min), _nr.tmin);
     const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
 
+    // Écart pluie vs normale, en % — refProrata est la normale déjà proratisée par l'appelant
+    function _ecartPluiePct(val, refProrata) {
+      if(val===null||val===undefined||!isFinite(val)||!refProrata||refProrata<=0) return '';
+      const pct = Math.round((val/refProrata)*100);
+      const col = pct>=150?'#0d47a1':pct>=110?'#4a9edd':pct<=50?'#b71c1c':pct<=90?'#e8604c':'#999';
+      return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+pct+'% norm.</span>';
+    }
+    const joursDansMoisCourant = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const _ecartPluieMois = _ecartPluiePct(n(cumul.pluie_mois), (_nr.pr||0) * (now.getDate()/joursDansMoisCourant));
+
+    // Normale annuelle proratisée : somme des mois déjà passés + prorata du mois en cours
+    const _normAnneeProrata = (function(){
+      let sum = 0;
+      for(let m=1;m<_mois;m++){ sum += (NORMALES_RENNES[m]||{}).pr||0; }
+      sum += (_nr.pr||0) * (now.getDate()/joursDansMoisCourant);
+      return sum;
+    })();
+    const _ecartPluieAnnee = _ecartPluiePct(n(cumul.pluie_annee), _normAnneeProrata);
+
     const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false)
       + recordBadge(recCache, 'temp_max_min', n(k.temp_max), true);
     const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true)
@@ -576,8 +596,8 @@ async function loadData() {
           <div class="kpi-sub-grid">
             <div class="kpi-sub-item"><b>${fmt(k.pluie_rate_max)} mm/h${bIntensite}</b><span>Intensité max</span></div>
             <div class="kpi-sub-item"><b>${ex.heure_pluie_max||'—'}</b><span>heure max</span></div>
-            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_mois))} mm</b><span>Cumul du mois</span></div>
-            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_annee))} mm</b><span>Cumul de l'année</span></div>
+            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_mois))} mm${_ecartPluieMois}</b><span>Cumul du mois</span></div>
+            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_annee))} mm${_ecartPluieAnnee}</b><span>Cumul de l'année</span></div>
           </div>
         </div>
         <div class="kpi-card">

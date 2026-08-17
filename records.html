@@ -154,14 +154,17 @@ function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE
 function monthWhereT(){ return ' WHERE TRUE'+monthWhere(); }
 function monthWhereP(){ return ' WHERE TRUE AND precipRate < 150'+monthWhere(); }
 
-function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra,showTm){
+function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra,showTm,tend){
+  const tendArrow = function(t){
+    return t==='hausse'?' <span style="color:#e8604c;" title="Tendance hausse">↗</span>':t==='baisse'?' <span style="color:#4a9edd;" title="Tendance baisse">↘</span>':'';
+  };
   const topRows = top10.map(function(r,i){
     const rc = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
     const heureCell = r.heure?' <span style="color:#bbb;font-size:10px;">'+r.heure+'</span>':'';
     const tmCell = (showTm&&r.tmax!==null&&r.tmin!==null)?' <span style="color:#bbb;font-size:10px;">'+fmt(r.tmax)+'° / '+fmt(r.tmin)+'°</span>':'';
     return '<tr>'
       +'<td class="'+rc+'">'+(i+1)+'</td>'
-      +'<td>'+fmt(n(r.val))+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span></td>'
+      +'<td>'+fmt(n(r.val))+'<span style="color:#aaa;font-size:10px;"> '+unit+'</span>'+tendArrow(r.tend)+'</td>'
       +'<td>'+fmtDate(r.jour)+heureCell+tmCell+'</td>'
       +'</tr>';
   });
@@ -171,7 +174,7 @@ function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra,showT
 
   return '<div class="record-card">'
     +'<div class="record-header"><div class="record-icon '+iconClass+'">'+icon+'</div><div class="record-title">'+title+'</div></div>'
-    +'<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;"><div class="record-value">'+fmt(n(value))+'</div><div class="record-unit">'+unit+'</div></div>'
+    +'<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px;"><div class="record-value">'+fmt(n(value))+'</div><div class="record-unit">'+unit+'</div>'+tendArrow(tend)+'</div>'
     +'<div class="record-date">Le <b>'+fmtDate(date)+'</b>'+(heure?' à <b>'+heure+'</b>':'')+'</div>'
     +(extra?'<div class="record-extra">'+extra+'</div>':'')
     +'<details>'
@@ -203,18 +206,21 @@ async function loadData(){
   const qMoisSec="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY mois ORDER BY total ASC LIMIT 10";
   // ---- Vent ----
   const qRafaleMaxH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,windgustHigh AS val FROM `meteo_cintre.raw_data_v2`"+WT+" ORDER BY windgustHigh DESC LIMIT 10";
+  const qEcartInstBase="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,tempHigh-tempLow AS val,tempAvg-LAG(tempAvg) OVER (ORDER BY obsTimeUtc) AS d FROM `meteo_cintre.raw_data_v2`"+WT;
+  const qEcartHausse="SELECT jour,heure,val FROM ("+qEcartInstBase+") WHERE d>0 ORDER BY val DESC LIMIT 10";
+  const qEcartBaisse="SELECT jour,heure,val FROM ("+qEcartInstBase+") WHERE d<0 ORDER BY val DESC LIMIT 10";
   const qVentMoyJour="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,AVG(windspeedAvg) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour ORDER BY val DESC LIMIT 10";
   const qSeuilsVent="SELECT COUNTIF(rafale_max>=50) AS nb_rafale50,COUNTIF(rafale_max>=70) AS nb_rafale70,COUNTIF(vent_moy>=20) AS nb_ventmoy20 FROM (SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(windgustHigh) AS rafale_max,AVG(windspeedAvg) AS vent_moy FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour)";
   const qMoisVente="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,AVG(windgustHigh) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY mois ORDER BY val DESC LIMIT 10";
   const qMoisCalme="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,AVG(windgustHigh) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY mois ORDER BY val ASC LIMIT 10";
 
   try{
-    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resMPluvieux,resMSec,resRafaleH,resVentJour,resSeuilsVent,resMVente,resMCalme]=await Promise.all([
+    const [res,resAll,resTmaxH,resTminH,resPJ,resP5,resInt,resMPluvieux,resMSec,resRafaleH,resVentJour,resSeuilsVent,resMVente,resMCalme,resEcartHausse,resEcartBaisse]=await Promise.all([
       queryBQ(qDaily),queryBQ(qDailyAll),queryBQ(qTmaxH),queryBQ(qTminH),
       queryBQ(qPrecipJour),queryBQ(qPrecip5min),queryBQ(qIntensiteMax),
       queryBQ(qMoisPluvieux),queryBQ(qMoisSec),
       queryBQ(qRafaleMaxH),queryBQ(qVentMoyJour),queryBQ(qSeuilsVent),
-      queryBQ(qMoisVente),queryBQ(qMoisCalme)
+      queryBQ(qMoisVente),queryBQ(qMoisCalme),queryBQ(qEcartHausse),queryBQ(qEcartBaisse)
     ]);
 
     const days=parseRows(res);
@@ -231,6 +237,8 @@ async function loadData(){
     const seuilsVent=parseRows(resSeuilsVent)[0]||{};
     const moisVente=parseRows(resMVente);
     const moisCalme=parseRows(resMCalme);
+    const ecartHausse=parseRows(resEcartHausse);
+    const ecartBaisse=parseRows(resEcartBaisse);
 
     if(!days.length){
       document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">Aucune donnée pour ce mois.</div></div>';
@@ -262,6 +270,8 @@ async function loadData(){
     const t10MSec=moisSec.map(function(r){return {val:n(r.total),label:fmtMonth(r.mois)};});
 
     const t10RafaleMax=rafaleMaxH.map(function(r){return {val:n(r.val),jour:r.jour,heure:r.heure};});
+    const t10EcartHausse=ecartHausse.map(function(r){return {val:n(r.val),jour:r.jour,heure:r.heure};});
+    const t10EcartBaisse=ecartBaisse.map(function(r){return {val:n(r.val),jour:r.jour,heure:r.heure};});
     const t10VentMoyJour=ventMoyJour.map(function(r){return {val:n(r.val),jour:r.jour,heure:null};});
     const t10MVente=moisVente.map(function(r){return {val:n(r.val),label:fmtMonth(r.mois)};});
     const t10MCalme=moisCalme.map(function(r){return {val:n(r.val),label:fmtMonth(r.mois)};});
@@ -271,6 +281,7 @@ async function loadData(){
     const p0=t10PrecipJour[0],p2=t10Precip5min[0],p3=t10Intensite[0];
     const p4=t10MPluvieux[0],p5=t10MSec[0];
     const v0=t10RafaleMax[0],v1=t10VentMoyJour[0],v2=t10MVente[0],v3=t10MCalme[0];
+    const e0=t10EcartHausse[0],e1=t10EcartBaisse[0];
 
     const htmlTemp=
       '<div class="section-title">🌡️ Températures extrêmes</div>'
@@ -287,6 +298,8 @@ async function loadData(){
       +'<div class="card-grid">'
       +recordCard('📈','amber','Amplitude maximale',r4.val,'°C',r4.jour,null,t10AmpHigh,(r4.tmax!==null?'Max '+fmt(r4.tmax)+'° · Min '+fmt(r4.tmin)+'°':null),true)
       +recordCard('📉','teal','Amplitude minimale',r5.val,'°C',r5.jour,null,t10AmpLow,(r5.tmax!==null?'Max '+fmt(r5.tmax)+'° · Min '+fmt(r5.tmin)+'°':null),true)
+      +recordCard('📈','amber','Plus forte hausse instantanée (5 min)',e0?e0.val:null,'°C',e0?e0.jour:null,e0?e0.heure:null,t10EcartHausse,"Écart tempHigh/tempLow au sein d'une même mesure, sur une mesure où la température était en hausse par rapport à la précédente. Distinct de l'amplitude journalière ci-dessus. Tendance déduite par comparaison avec la mesure précédente (approximation : pas d'horodatage plus fin que 5 min)",false)
+      +recordCard('📉','teal','Plus forte baisse instantanée (5 min)',e1?e1.val:null,'°C',e1?e1.jour:null,e1?e1.heure:null,t10EcartBaisse,"Écart tempHigh/tempLow au sein d'une même mesure, sur une mesure où la température était en baisse par rapport à la précédente. Distinct de l'amplitude journalière ci-dessus. Tendance déduite par comparaison avec la mesure précédente (approximation : pas d'horodatage plus fin que 5 min)",false)
       +'</div>'
       +'<div class="section-title">🎯 Records atypiques</div>'
       +'<div class="card-grid">'

@@ -209,6 +209,12 @@ const MOIS_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','A
 // Couleurs par année
 const YEAR_COLORS = ['#e8604c','#667eea','#11998e','#f5c518','#a855f7','#f97316'];
 
+// Normales Rennes-Saint-Jacques 1991-2020 (Météo-France) — précipitations mensuelles en mm
+const NORMALES_RENNES = {
+  1:{pr:66.6},2:{pr:51.6},3:{pr:48.9},4:{pr:51.2},5:{pr:58.1},6:{pr:50.9},
+  7:{pr:44.0},8:{pr:43.5},9:{pr:56.6},10:{pr:73.1},11:{pr:73.2},12:{pr:73.3}
+};
+
 function heatColor(val,min,max,type){
   if(val===null||!isFinite(val)||min===max)return'';
   const r=Math.max(0,Math.min(1,(val-min)/(max-min)));
@@ -465,7 +471,9 @@ function renderData(){
     +'<div class="section-header">🌧️ Précipitations — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
     +'<div class="section-header">📈 Cumul précipitations annuel</div>'
-    +'<div class="chart-card"><canvas id="cCumul" style="height:500px;"></canvas></div>'
+    +'<div class="chart-card"><canvas id="cCumul" style="height:400px;"></canvas>'
+      +'<div style="font-size:10px;color:#bbb;margin-top:6px;">Pointillé <span style="color:#999;">gris</span> : normale Rennes-Saint-Jacques 1991-2020, répartie uniformément sur les jours de chaque mois puis cumulée.</div>'
+    +'</div>'
     +'<div class="month-picker" id="monthPicker" style="margin:8px 16px 0;">'
     +'<div class="month-picker-header" onclick="toggleMonthPicker()">'
     +'<span>🗓️ Filtrer par mois</span><em id="monthPickerLabel">Tous les mois ▼</em></div>'
@@ -562,13 +570,13 @@ function renderCumulChart(){
   }
 
   const MOIS_FR_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  // Un seul label par mois (le 1er) pour éviter le chevauchement -- la grille verticale s'aligne
+  // dessus et matérialise ainsi les frontières de mois.
   const cumulLabels = allDayKeys.map(function(k){
     const parts = k.split('-');
     const mIdx = parseInt(parts[0])-1;
     const d = parseInt(parts[1]);
-    if(d===1) return '1 '+MOIS_FR_SHORT[mIdx];
-    if(d===15) return '15 '+MOIS_FR_SHORT[mIdx];
-    return '';
+    return d===1 ? MOIS_FR_SHORT[mIdx] : '';
   });
 
   const cumulDatasets = selectedYears.map(function(y){
@@ -609,9 +617,56 @@ function renderCumulChart(){
     };
   });
 
+  // Normale 1991-2020 lissée : chaque normale mensuelle est étalée uniformément sur ses jours puis cumulée
+  const normCumulData = (function(){
+    const data = []; let cumul = 0;
+    for(let m=0;m<12;m++){
+      const daily = ((NORMALES_RENNES[m+1]||{}).pr||0) / daysInMonthRef[m];
+      for(let d=1;d<=daysInMonthRef[m];d++){
+        cumul += daily;
+        data.push(parseFloat(cumul.toFixed(1)));
+      }
+    }
+    return data;
+  })();
+  cumulDatasets.push({
+    label:'Normale 1991-2020',
+    data:normCumulData,
+    borderColor:'#999',
+    backgroundColor:'transparent',
+    borderWidth:1.5,
+    borderDash:[6,3],
+    tension:0.2,
+    pointRadius:0,
+    spanGaps:false,
+    order:2
+  });
+
+  // Trait vertical marqué au 1er de chaque mois -- plus visible que la grille de fond, pour repérer
+  // les frontières de mois d'un coup d'œil sur un axe de 366 jours.
+  const monthLinesPlugin = {
+    id:'monthLines',
+    beforeDatasetsDraw:function(chart){
+      const {ctx, chartArea:{top,bottom}, scales:{x}} = chart;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1;
+      cumulLabels.forEach(function(lbl,i){
+        if(!lbl) return;
+        const xPix = x.getPixelForValue(i);
+        ctx.beginPath();
+        ctx.moveTo(xPix, top);
+        ctx.lineTo(xPix, bottom);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+  };
+
   makeChart('cCumul',{
     type:'line',
     data:{labels:cumulLabels, datasets:cumulDatasets},
+    plugins:[monthLinesPlugin],
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
       plugins:{
@@ -629,7 +684,7 @@ function renderCumulChart(){
           ticks:{color:'#999',font:{size:9},maxRotation:0,autoSkip:false,
             callback:function(v,i){return cumulLabels[i]||null;}
           },
-          grid:{color:'rgba(0,0,0,0.03)'}
+          grid:{display:false}
         },
         y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},beginAtZero:true,
           title:{display:true,text:'mm',color:'#ccc',font:{size:9}}}
