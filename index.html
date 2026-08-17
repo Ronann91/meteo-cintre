@@ -162,7 +162,7 @@ function heatColor(val, min, max, type='default') {
   return `background:rgba(100,100,200,${0.08 + ratio*0.3});`;
 }
 
-const RECORDS_CACHE_KEY = 'meteo_records_cache_v3';
+const RECORDS_CACHE_KEY = 'meteo_records_cache_v5';
 
 function parisDateParts() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
@@ -191,10 +191,13 @@ async function getRecordsCache() {
   ['all','month'].forEach(scope => {
     const m = scope === 'month';
     jobs['temp_max_'+scope]   = qDaily('MAX(tempHigh)', '', 'DESC', m, null);
+    jobs['temp_max_min_'+scope] = qDaily('MAX(tempHigh)', '', 'ASC', m, null);
     jobs['temp_min_'+scope]   = qDaily('MIN(tempLow)', '', 'ASC', m, null);
     jobs['temp_min_chaud_'+scope] = qDaily('MIN(tempLow)', '', 'DESC', m, null);
     jobs['temp_moy_'+scope]   = qDaily('AVG(tempAvg)', '', 'DESC', m, 280);
+    jobs['temp_moy_min_'+scope] = qDaily('AVG(tempAvg)', '', 'ASC', m, 280);
     jobs['amplitude_'+scope]  = qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'DESC', m, 280);
+    jobs['amplitude_min_'+scope] = qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'ASC', m, 280);
     jobs['pluie_jour_'+scope] = qDaily('SUM(somme)', ' AND precipRate<150', 'DESC', m, null);
     jobs['vent_moy_'+scope]   = qDaily('AVG(windspeedAvg)', '', 'DESC', m, null);
     jobs['intensite_'+scope]  = qReading('precipRate', ' AND precipRate<150', 'DESC', m);
@@ -523,16 +526,19 @@ async function loadData() {
     const _ecartMin = _ecart(n(k.temp_min), _nr.tmin);
     const _ecartMoy = _ecart(n(k.temp_moy), _nr.tmoy);
 
-    const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false);
+    const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false)
+      + recordBadge(recCache, 'temp_max_min', n(k.temp_max), true);
     const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true)
       + recordBadge(recCache, 'temp_min_chaud', n(k.temp_min), false);
-    const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false);
+    const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false)
+      + recordBadge(recCache, 'temp_moy_min', n(k.temp_moy), true);
     const deltaVal = (n(k.temp_max)!==null && n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)) : null;
-    const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false);
+    const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false)
+      + recordBadge(recCache, 'amplitude_min', deltaVal, true);
     const bPluieJour = recordBadge(recCache, 'pluie_jour', n(k.pluie_total), false);
     const bIntensite = recordBadge(recCache, 'intensite', n(k.pluie_rate_max), false);
     const bRafale = recordBadge(recCache, 'rafale', n(k.vent_rafale_max), false);
-    const bVentMoy = recordBadge(recCache, 'vent_moy_jour', n(k.vent_moy_jour), false);
+    const bVentMoy = recordBadge(recCache, 'vent_moy', n(k.vent_moy_jour), false);
 
     document.getElementById('app').innerHTML = `
       <div class="header">
