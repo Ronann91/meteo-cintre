@@ -103,6 +103,7 @@ nav a.active { color: #11998e; font-weight: 600; }
 
 <div id="sj-modal-container"></div>
 <nav>
+  <a href="accueil.html"><span style="font-size:20px;">🏠</span>Accueil</a>
   <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
   <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
   <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
@@ -471,7 +472,7 @@ function renderData(){
     +'<div class="section-header">🌧️ Précipitations — moyenne Jan→Déc'+(selectedYears.length>1?' (moy. '+selectedYears.length+' ans)':'')+'</div>'
     +'<div class="chart-card"><canvas id="cPluie"></canvas></div>'
     +'<div class="section-header">📈 Cumul précipitations annuel</div>'
-    +'<div class="chart-card"><canvas id="cCumul" style="height:400px;"></canvas>'
+    +'<div class="chart-card"><div style="position:relative;height:400px;"><canvas id="cCumul"></canvas></div>'
       +'<div style="font-size:10px;color:#bbb;margin-top:6px;">Pointillé <span style="color:#999;">gris</span> : normale Rennes-Saint-Jacques 1991-2020, répartie uniformément sur les jours de chaque mois puis cumulée.</div>'
     +'</div>'
     +'<div class="month-picker" id="monthPicker" style="margin:8px 16px 0;">'

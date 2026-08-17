@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Météo — Cintré | Accueil</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+.top-bar { background: linear-gradient(135deg, #2c3e50 0%, #4a5568 100%); padding: 20px 16px 28px; color: white; }
+.top-bar-location { font-size: 11px; opacity: 0.75; }
+.top-bar-title { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.top-bar-sub { font-size: 12px; opacity: 0.8; margin-top: 4px; line-height: 1.5; }
+
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
+.intro-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); font-size: 13px; color: #444; line-height: 1.7; }
+.intro-card b { color: #1a1a2e; }
+
+.nav-grid { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 0 16px 10px; }
+.nav-card { background: white; border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); text-decoration: none; color: inherit; display: flex; align-items: center; gap: 12px; }
+.nav-card-icon { font-size: 22px; flex-shrink: 0; width: 34px; text-align: center; }
+.nav-card-title { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.nav-card-desc { font-size: 11px; color: #999; margin-top: 2px; line-height: 1.4; }
+.nav-card-arrow { margin-left: auto; color: #ccc; font-size: 14px; }
+
+.def-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.def-item { padding: 10px 0; border-bottom: 0.5px solid #f5f5f5; }
+.def-item:last-child { border-bottom: none; }
+.def-term { font-size: 12px; font-weight: 700; color: #1a1a2e; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+.def-text { font-size: 11px; color: #666; line-height: 1.55; }
+
+.note { font-size: 10px; color: #bbb; padding: 4px 16px 20px; line-height: 1.6; }
+
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav a.active { color: #2c3e50; font-weight: 600; }
+.pb { padding-bottom: 80px; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-location">📍 Cintré, Bretagne</div>
+  <div class="top-bar-title">🏠 Suivi météo personnel</div>
+  <div class="top-bar-sub">Station perso (réseau Wunderground, ID ICINTR8) — relevé toutes les 5 minutes, archivé dans BigQuery.</div>
+</div>
+
+<div class="pb">
+
+  <div class="section-header">🧭 Où trouver quoi</div>
+  <div class="nav-grid">
+    <a class="nav-card" href="index.html">
+      <div class="nav-card-icon">🌤️</div>
+      <div>
+        <div class="nav-card-title">Aujourd'hui</div>
+        <div class="nav-card-desc">Suivi en direct de la journée en cours : température, pluie, vent, et classements du jour vs les records existants.</div>
+      </div>
+      <div class="nav-card-arrow">›</div>
+    </a>
+    <a class="nav-card" href="detail.html">
+      <div class="nav-card-icon">📅</div>
+      <div>
+        <div class="nav-card-title">Journée</div>
+        <div class="nav-card-desc">Détail heure par heure d'une journée passée au choix.</div>
+      </div>
+      <div class="nav-card-arrow">›</div>
+    </a>
+    <a class="nav-card" href="bilan.html">
+      <div class="nav-card-icon">📆</div>
+      <div>
+        <div class="nav-card-title">Bilan</div>
+        <div class="nav-card-desc">Bilan sur une plage de dates libre (mois en cours, mois précédent, année en cours...), avec granularité jour/semaine/mois.</div>
+      </div>
+      <div class="nav-card-arrow">›</div>
+    </a>
+    <a class="nav-card" href="records.html">
+      <div class="nav-card-icon">🏆</div>
+      <div>
+        <div class="nav-card-title">Records</div>
+        <div class="nav-card-desc">Classements et records absolus ou mensuels : températures extrêmes, amplitude, pluie, vent.</div>
+      </div>
+      <div class="nav-card-arrow">›</div>
+    </a>
+    <a class="nav-card" href="climat.html">
+      <div class="nav-card-icon">🌍</div>
+      <div>
+        <div class="nav-card-title">Climat</div>
+        <div class="nav-card-desc">Comparaison pluriannuelle : cumuls de précipitations vs normale Rennes-Saint-Jacques, écarts de température.</div>
+      </div>
+      <div class="nav-card-arrow">›</div>
+    </a>
+    <a class="nav-card" href="couts.html">
+      <div class="nav-card-icon">💰</div>
+      <div>
+        <div class="nav-card-title">Coûts</div>
+        <div class="nav-card-desc">Suivi des coûts et volumes BigQuery — structurel (chargement) vs consommation (visites du dashboard).</div>
+      </div>
+      <div class="nav-card-arrow">›</div>
+    </a>
+  </div>
+
+  <div class="section-header">⚠️ Biais et points de vigilance</div>
+  <div class="def-card">
+    <div class="def-item">
+      <div class="def-term">🗺️ Normales de référence externes</div>
+      <div class="def-text">Les comparaisons "écart vs normale" (température et pluie) utilisent les normales officielles Météo-France 1991–2020 de la station <b>Rennes-Saint-Jacques</b> — pas une normale calculée sur la station de Cintré elle-même, qui n'a que quelques années d'historique. Un écart local réel (microclimat, exposition) peut donc se lire comme un "écart vs normale" qui n'en est pas vraiment un.</div>
+    </div>
+    <div class="def-item">
+      <div class="def-term">⏱️ Délai de remontée</div>
+      <div class="def-text">Les données arrivent avec un léger retard côté station (~15 min), hors de notre contrôle.</div>
+    </div>
+    <div class="def-item">
+      <div class="def-term">📉 Filtre de complétude</div>
+      <div class="def-text">Les classements et records journaliers (moyenne, amplitude) excluent les jours avec moins de 280 relevés sur 288 attendus (~journée incomplète, coupure capteur). Une partie de l'historique n'est donc pas éligible aux classements.</div>
+    </div>
+    <div class="def-item">
+      <div class="def-term">📡 Station grand public</div>
+      <div class="def-text">La station est un modèle personnel connecté au réseau Wunderground, pas une station professionnelle Météo-France — précision et calibration moindres qu'une station de référence.</div>
+    </div>
+  </div>
+
+  <div class="note">
+    Projet personnel de suivi météo — station Cintré (Bretagne), pipeline Cloud Function + BigQuery. Les biais listés ci-dessus concernent l'ensemble du dashboard ; les limites propres à une carte ou un calcul spécifique sont documentées directement sur la page concernée.
+  </div>
+
+</div>
+
+<nav>
+  <a href="accueil.html" class="active"><span style="font-size:20px;">🏠</span>Accueil</a>
+  <a href="index.html"><span style="font-size:20px;">🌤️</span>Aujourd'hui</a>
+  <a href="detail.html"><span style="font-size:20px;">📅</span>Journée</a>
+  <a href="bilan.html"><span style="font-size:20px;">📆</span>Bilan</a>
+  <a href="records.html"><span style="font-size:20px;">🏆</span>Records</a>
+  <a href="climat.html"><span style="font-size:20px;">🌍</span>Climat</a>
+  <a href="couts.html"><span style="font-size:20px;">💰</span>Coûts</a>
+</nav>
+
+</body>
+</html>
