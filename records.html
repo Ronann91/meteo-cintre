@@ -201,15 +201,15 @@ async function loadData(){
   const qTminH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure FROM `meteo_cintre.raw_data_v2`"+WT+" ORDER BY tempLow ASC LIMIT 10";
   // ---- Précipitations ----
   const qPrecipJour="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY jour ORDER BY total DESC LIMIT 10";
-  const qPrecip5min="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,somme AS val FROM `meteo_cintre.raw_data_v2`"+WP+" ORDER BY somme DESC LIMIT 10";
-  const qIntensiteMax="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,precipRate AS val FROM `meteo_cintre.raw_data_v2`"+WP+" ORDER BY precipRate DESC LIMIT 10";
+  const qPrecip5min="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,somme AS val FROM `meteo_cintre.raw_data_v2`"+WP+" QUALIFY ROW_NUMBER() OVER (PARTITION BY jour ORDER BY val DESC)=1 ORDER BY val DESC LIMIT 10";
+  const qIntensiteMax="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,precipRate AS val FROM `meteo_cintre.raw_data_v2`"+WP+" QUALIFY ROW_NUMBER() OVER (PARTITION BY jour ORDER BY val DESC)=1 ORDER BY val DESC LIMIT 10";
     const qMoisPluvieux="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY mois ORDER BY total DESC LIMIT 10";
   const qMoisSec="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY mois ORDER BY total ASC LIMIT 10";
   // ---- Vent ----
-  const qRafaleMaxH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,windgustHigh AS val FROM `meteo_cintre.raw_data_v2`"+WT+" ORDER BY windgustHigh DESC LIMIT 10";
+  const qRafaleMaxH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,windgustHigh AS val FROM `meteo_cintre.raw_data_v2`"+WT+" QUALIFY ROW_NUMBER() OVER (PARTITION BY jour ORDER BY val DESC)=1 ORDER BY val DESC LIMIT 10";
   const qEcartInstBase="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,tempHigh-tempLow AS val,tempAvg-LAG(tempAvg) OVER (ORDER BY obsTimeUtc) AS d FROM `meteo_cintre.raw_data_v2`"+WT;
-  const qEcartHausse="SELECT jour,heure,val FROM ("+qEcartInstBase+") WHERE d>0 ORDER BY val DESC LIMIT 10";
-  const qEcartBaisse="SELECT jour,heure,val FROM ("+qEcartInstBase+") WHERE d<0 ORDER BY val DESC LIMIT 10";
+  const qEcartHausse="SELECT jour,heure,val FROM ("+qEcartInstBase+") WHERE d>0 QUALIFY ROW_NUMBER() OVER (PARTITION BY jour ORDER BY val DESC)=1 ORDER BY val DESC LIMIT 10";
+  const qEcartBaisse="SELECT jour,heure,val FROM ("+qEcartInstBase+") WHERE d<0 QUALIFY ROW_NUMBER() OVER (PARTITION BY jour ORDER BY val DESC)=1 ORDER BY val DESC LIMIT 10";
   const qVentMoyJour="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,AVG(windspeedAvg) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour ORDER BY val DESC LIMIT 10";
   const qSeuilsVent="SELECT COUNTIF(rafale_max>=50) AS nb_rafale50,COUNTIF(rafale_max>=70) AS nb_rafale70,COUNTIF(vent_moy>=20) AS nb_ventmoy20 FROM (SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(windgustHigh) AS rafale_max,AVG(windspeedAvg) AS vent_moy FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour)";
   const qMoisVente="SELECT FORMAT_DATE('%Y-%m',DATE(obsTimeUtc, 'Europe/Paris')) AS mois,AVG(windgustHigh) AS val FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY mois ORDER BY val DESC LIMIT 10";

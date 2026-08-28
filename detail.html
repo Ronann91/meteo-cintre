@@ -182,7 +182,7 @@ function heatColor(val,min,max,type) {
   return '';
 }
 
-const RECORDS_CACHE_KEY = 'meteo_records_cache_detail_v1';
+const RECORDS_CACHE_KEY = 'meteo_records_cache_detail_v2';
 
 function todayDateStr() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
@@ -201,7 +201,7 @@ async function getRecordsCache(month) {
   if (!cache || cache.date !== dateStr) cache = {date: dateStr, all: null, months: {}};
 
   function qReading(col, extraWhere, order, monthFilter) {
-    return `SELECT ${col} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE TRUE${extraWhere||''}${monthFilter||''} ORDER BY val ${order} LIMIT 10`;
+    return `SELECT ${col} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE TRUE${extraWhere||''}${monthFilter||''} QUALIFY ROW_NUMBER() OVER (PARTITION BY DATE(obsTimeUtc,"Europe/Paris") ORDER BY ${col} ${order})=1 ORDER BY val ${order} LIMIT 10`;
   }
   function qDaily(agg, extraWhere, order, monthFilter, minCount) {
     const having = minCount ? ` HAVING COUNT(*)>=${minCount}` : '';
