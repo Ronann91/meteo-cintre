@@ -6,8 +6,56 @@
 <title>Météo — Cintré | Détail journalier (V2)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #333333;
+  --text-value: #555555;
+  --text-muted: #6b6b6b;
+  --border: #f0f0f0;
+  --border-soft: #f5f5f5;
+  --shadow-card: rgba(0,0,0,0.05);
+  --shadow-main: rgba(0,0,0,0.08);
+  --hover-bg: #f9f9ff;
+  --table-head-bg: #f7f8fa;
+  --nav-bg: #ffffff;
+  --nav-border: #eeeeee;
+  --modal-close-bg: #f0f0f0;
+  --info-bg: #fff8e6;
+  --info-text: #8a6d1a;
+  --error-bg: #fff5f5;
+  --error-text: #e53e3e;
+  --spinner-track: #f0f0f0;
+  --accent: #667eea;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14151a;
+  --card-bg: #1e2028;
+  --text-primary: #f2f2f5;
+  --text-secondary: #d8d8de;
+  --text-value: #e4e4ea;
+  --text-muted: #a8a8b3;
+  --border: #2c2e38;
+  --border-soft: #262832;
+  --shadow-card: rgba(0,0,0,0.35);
+  --shadow-main: rgba(0,0,0,0.45);
+  --hover-bg: #262838;
+  --table-head-bg: #24262f;
+  --nav-bg: #1a1b22;
+  --nav-border: #2c2e38;
+  --modal-close-bg: #2c2e38;
+  --info-bg: #33290f;
+  --info-text: #f0c96b;
+  --error-bg: #331a1a;
+  --error-text: #ff9999;
+  --spinner-track: #2c2e38;
+  --accent: #7c8ff0;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 .top-bar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 14px 16px 26px; color: white; }
 .top-bar-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .top-bar-title { font-size: 18px; font-weight: 700; }
@@ -15,83 +63,89 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .top-bar-controls { display: flex; gap: 8px; align-items: center; }
 input[type=date] { border: none; background: rgba(255,255,255,0.2); color: white; border-radius: 20px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
-.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.refresh-btn, .theme-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.theme-toggle { padding: 6px 10px; font-size: 14px; line-height: 1; }
 .back-link { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 11px; }
 
-.main-temp-card { background: white; margin: -14px 16px 0; border-radius: 20px; padding: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; }
+.main-temp-card { background: var(--card-bg); margin: -14px 16px 0; border-radius: 20px; padding: 18px; box-shadow: 0 4px 24px var(--shadow-main); display: flex; align-items: center; justify-content: space-between; }
 .main-temp-left { flex: 1; }
-.main-temp-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
-.main-temp-value { font-size: 48px; font-weight: 300; color: #1a1a2e; line-height: 1; }
-.main-temp-value sup { font-size: 20px; font-weight: 400; color: #888; vertical-align: super; }
+.main-temp-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+.main-temp-value { font-size: 48px; font-weight: 300; color: var(--text-primary); line-height: 1; }
+.main-temp-value sup { font-size: 20px; font-weight: 400; color: var(--text-muted); vertical-align: super; }
 .main-temp-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
-.meta-item { font-size: 11px; color: #aaa; line-height: 1.5; }
-.meta-item b { display: block; font-size: 13px; font-weight: 600; color: #333; }
-.meta-item span { font-size: 10px; color: #bbb; }
+.meta-item { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.meta-item b { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.meta-item span { font-size: 10px; color: var(--text-muted); }
 .main-temp-icon { font-size: 52px; line-height: 1; margin-left: 12px; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
-.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card { background: var(--card-bg); border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .kpi-card.full { grid-column: span 2; }
 .kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
 .kpi-icon.blue { background: #e8f4ff; } .kpi-icon.teal { background: #e6f9f3; }
 .kpi-icon.amber { background: #fff8e6; } .kpi-icon.purple { background: #f3eeff; } .kpi-icon.pink { background: #fff0f5; }
-.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
-.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
+:root[data-theme="dark"] .kpi-icon.blue { background: #1c3550; }
+:root[data-theme="dark"] .kpi-icon.teal { background: #123c33; }
+:root[data-theme="dark"] .kpi-icon.amber { background: #3a2f10; }
+:root[data-theme="dark"] .kpi-icon.purple { background: #2a2350; }
+:root[data-theme="dark"] .kpi-icon.pink { background: #3a1f2c; }
+.kpi-card-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: var(--text-muted); }
 .kpi-sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 7px; }
-.kpi-sub-item { font-size: 10px; color: #bbb; line-height: 1.6; }
-.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: #555; }
-.kpi-sub-item span { font-size: 10px; color: #ccc; }
-.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
-.kpi-sub-single b { color: #555; font-weight: 500; }
+.kpi-sub-item { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
+.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: var(--text-value); }
+.kpi-sub-item span { font-size: 10px; color: var(--text-muted); }
+.kpi-sub-single { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: var(--text-value); font-weight: 500; }
 .rec-badge { display:inline-block; font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:3px; vertical-align:middle; white-space:nowrap; }
 .rec-badge.rec-10 { background:#eef0ff; color:#8890c0; font-weight:600; }
 .rec-badge.rec-3 { background:#ffe0d6; color:#c0392b; font-size:9px; }
 .rec-badge.rec-1 { background:#ffd700; color:#7a4a00; font-size:10px; padding:2px 6px; box-shadow:0 0 0 1px #ffb300, 0 0 5px rgba(255,180,0,0.7); animation: recPulse 1.4s ease-in-out infinite; }
 @keyframes recPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
 
-.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
-.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: var(--card-bg); border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.chart-card-title em { font-size: 11px; color: var(--text-muted); font-style: normal; margin-left: auto; }
 
 .table-section { padding: 0 16px 24px; }
-.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.table-card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 2px 12px var(--shadow-card); overflow: hidden; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th { background: var(--table-head-bg); color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
 thead th:first-child { text-align: left; padding-left: 12px; }
-tbody tr { border-bottom: 0.5px solid #f5f5f5; cursor: pointer; transition: background 0.15s; }
-tbody tr:hover { background: #f9f9ff; }
+tbody tr { border-bottom: 0.5px solid var(--border-soft); cursor: pointer; transition: background 0.15s; }
+tbody tr:hover { background: var(--hover-bg); }
 tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
-tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #667eea; }
+tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: var(--text-secondary); }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: var(--accent); }
 
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: flex-end; }
-.modal { background: white; border-radius: 20px 20px 0 0; width: 100%; max-height: 70vh; overflow-y: auto; padding: 20px 16px 32px; }
+.modal { background: var(--card-bg); border-radius: 20px 20px 0 0; width: 100%; max-height: 70vh; overflow-y: auto; padding: 20px 16px 32px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; }
-.modal-close { background: #f0f0f0; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.modal-close { background: var(--modal-close-bg); color: var(--text-primary); border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; }
 .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.detail-table th { color: #aaa; font-weight: 600; text-transform: uppercase; font-size: 10px; padding: 6px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+.detail-table th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px; padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--border); }
 .detail-table th:first-child { text-align: left; }
-.detail-table td { padding: 7px 8px; text-align: center; border-bottom: 0.5px solid #f5f5f5; color: #333; }
-.detail-table td:first-child { text-align: left; font-weight: 600; color: #667eea; }
+.detail-table td { padding: 7px 8px; text-align: center; border-bottom: 0.5px solid var(--border-soft); color: var(--text-secondary); }
+.detail-table td:first-child { text-align: left; font-weight: 600; color: var(--accent); }
 
-.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
-.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+.loading { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--spinner-track); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: var(--error-bg); border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: var(--error-text); }
 @keyframes spin { to { transform: rotate(360deg); } }
-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
-nav a.active { color: #667eea; font-weight: 600; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 1px solid var(--nav-border); display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: var(--text-muted); font-size: 10px; gap: 3px; }
+nav a.active { color: var(--accent); font-weight: 600; }
 .pb { padding-bottom: 80px; }
 </style>
 </head>
 <body>
-<div style="background:#fff8e6;color:#8a6d1a;font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
+<div style="background:var(--info-bg);color:var(--info-text);font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
 
 <div class="top-bar">
   <div class="top-bar-row1">
@@ -101,6 +155,7 @@ nav a.active { color: #667eea; font-weight: 600; }
     </div>
     <div class="top-bar-controls">
       <input type="date" id="datePicker" onchange="loadData()">
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" aria-label="Changer de thème">🌙</button>
       <button class="refresh-btn" onclick="loadData()">↻</button>
     </div>
   </div>
@@ -143,7 +198,7 @@ function ecartNorm(val, ref) {
   if(val===null||val===undefined||!isFinite(val)) return '';
   const d = parseFloat((val-ref).toFixed(1));
   const sign = d>=0?'+':'';
-  const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'#999';
+  const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'var(--text-muted)';
   return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+sign+d+'°</span>';
 }
 
@@ -428,7 +483,7 @@ async function loadData() {
             +'<div class="meta-item"><b>Moy '+fmt(k.temp_moy)+'°C'+_eMoy+bTempMoy+'</b></div>'
             +'<div class="meta-item"><b>Δ '+delta+'°C'+bAmplitude+'</b></div>'
           +'</div>'
-          +'<div style="font-size:9px;color:#ccc;margin-top:5px;line-height:1.4;">Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)</div>'
+          +'<div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4;">Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)</div>'
         +'</div>'
         +'<div class="main-temp-icon">'+tempIcon(n(k.temp_moy))+'</div>'
       +'</div>'
@@ -448,6 +503,7 @@ async function loadData() {
       +'<div class="chart-card"><div class="chart-card-title"><span>💦 Humidité</span><em>%</em></div><canvas id="cHumidite"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🔵 Pression</span><em>hPa</em></div><canvas id="cPression"></canvas></div>'
       +'<div class="pb"></div>';
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 
     makeChart('cTemp','line',labels,[
       {label:'Max',data:rows.map(function(r){return n(r.tempHigh);}),borderColor:'#e8604c',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:2},
@@ -455,25 +511,80 @@ async function loadData() {
       {label:'Moy',data:rows.map(function(r){return n(r.tempMoyCumul);}),borderColor:'#bbb',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3]}
     ],{y0:false});
 
-    // Agrégat horaire pluie
-    const pByHour = {};
-    rows.forEach(function(r){
-      const h = r.heure.substring(0,2);
-      if(!pByHour[h]) pByHour[h]={cumul:0,intensite:0};
-      pByHour[h].cumul += n(r.pluie)||0;
-      pByHour[h].intensite = Math.max(pByHour[h].intensite, n(r.pluie_rate)||0);
-    });
-    const pHours = Object.keys(pByHour).sort();
-    const pLabels = pHours.map(function(h){return h+'h';});
-    const pCumul = pHours.map(function(h){return parseFloat(pByHour[h].cumul.toFixed(2));});
-    const pIntens = pHours.map(function(h){return parseFloat(pByHour[h].intensite.toFixed(2));});
-    let pRunning = 0;
-    const pRunningTotal = pHours.map(function(h){pRunning+=pByHour[h].cumul;return parseFloat(pRunning.toFixed(2));});
-    makeChart('cPluie','bar',pLabels,[
-      {label:'Précip. (mm)',data:pCumul,backgroundColor:'rgba(74,158,221,0.7)',borderRadius:2},
-      {label:'Intensité max (mm/h)',data:pIntens,backgroundColor:'rgba(232,96,76,0.6)',borderRadius:2},
-      {label:'Cumul (mm)',data:pRunningTotal,type:'line',borderColor:'#1a3a6a',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2}
-    ],{y0:true});
+    // Graphique pluie : barres horaires + cumul courbe noire + intensité max points (même rendu que la page Aujourd'hui)
+    (function(){
+      const byHour = {};
+      rows.forEach(function(r){
+        const h = r.heure ? r.heure.substring(0,2) : null;
+        if(h===null) return;
+        if(!byHour[h]) byHour[h] = {pluie:0, intensite:0};
+        byHour[h].pluie += n(r.pluie)||0;
+        byHour[h].intensite = Math.max(byHour[h].intensite, n(r.pluie_rate)||0);
+      });
+      const heures = Object.keys(byHour).sort();
+      const labelsH = heures.map(function(h){ return h+'h'; });
+      const pluieData = heures.map(function(h){ return parseFloat(byHour[h].pluie.toFixed(2)); });
+      let cumul = 0;
+      const cumulData = heures.map(function(h){ cumul += byHour[h].pluie; return parseFloat(cumul.toFixed(2)); });
+      const intensiteData = heures.map(function(h){ return byHour[h].intensite > 0 ? byHour[h].intensite : null; });
+
+      if(charts['cPluie']) charts['cPluie'].destroy();
+      const ctx = document.getElementById('cPluie').getContext('2d');
+      charts['cPluie'] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labelsH, datasets: [
+          {
+            label: 'Précip. (mm)',
+            data: pluieData,
+            backgroundColor: 'rgba(74,158,221,0.6)',
+            borderColor: 'rgba(74,158,221,0.8)',
+            borderWidth: 1,
+            borderRadius: 2,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Cumul (mm)',
+            data: cumulData,
+            type: 'line',
+            borderColor: '#1a1a2e',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 0,
+            borderWidth: 2,
+            yAxisID: 'yCumul'
+          },
+          {
+            label: 'Intensité max (mm/h)',
+            data: intensiteData,
+            type: 'scatter',
+            borderColor: 'rgba(0,0,0,0)',
+            backgroundColor: '#e8604c',
+            pointRadius: 5,
+            pointStyle: 'circle',
+            yAxisID: 'y'
+          }
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: true, aspectRatio: 1, animation: false,
+          plugins: {
+            legend: {display: true, labels: {color:'#999', font:{size:10}, boxWidth:10, padding:6}},
+            tooltip: {mode:'index', intersect:false, callbacks:{
+              label: function(c){
+                if(c.datasetIndex===0) return 'Précip.: '+c.parsed.y.toFixed(2)+' mm';
+                if(c.datasetIndex===1) return 'Cumul: '+c.parsed.y.toFixed(2)+' mm';
+                if(c.parsed.y===null) return null;
+                return 'Intensité max: '+c.parsed.y.toFixed(1)+' mm/h';
+              }
+            }}
+          },
+          scales: {
+            x: {ticks:{color:'#ccc',font:{size:9},maxTicksLimit:12}, grid:{color:'rgba(0,0,0,0.03)'}},
+            y: {ticks:{color:'#4a9edd',font:{size:9}}, grid:{color:'rgba(0,0,0,0.03)'}, beginAtZero:true, title:{display:true,text:'mm / mm/h',color:'#4a9edd',font:{size:9}}},
+            yCumul: {position:'right', ticks:{color:'#1a1a2e',font:{size:9}}, grid:{drawOnChartArea:false}, beginAtZero:true, title:{display:true,text:'Cumul mm',color:'#1a1a2e',font:{size:9}}}
+          }
+        }
+      });
+    })();
 
     // Graphique vent avec surface colorée par direction (16 secteurs)
     (function(){
@@ -562,6 +673,25 @@ async function loadData() {
   hier.setDate(hier.getDate()-1);
   dp.value = hier.toISOString().split('T')[0];
 })();
+
+const THEME_KEY = 'meteo-theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+initTheme();
 
 loadData();
 </script>

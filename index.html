@@ -6,31 +6,86 @@
 <title>Météo — Cintré (V2)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #333333;
+  --text-value: #555555;
+  --text-muted: #6b6b6b;
+  --border: #f0f0f0;
+  --border-soft: #f5f5f5;
+  --shadow-card: rgba(0,0,0,0.05);
+  --shadow-main: rgba(0,0,0,0.08);
+  --hover-bg: #f9f9ff;
+  --table-head-bg: #f7f8fa;
+  --nav-bg: #ffffff;
+  --nav-border: #eeeeee;
+  --modal-close-bg: #f0f0f0;
+  --info-bg: #fff8e6;
+  --info-text: #8a6d1a;
+  --error-bg: #fff5f5;
+  --error-text: #e53e3e;
+  --spinner-track: #f0f0f0;
+  --accent: #667eea;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14151a;
+  --card-bg: #1e2028;
+  --text-primary: #f2f2f5;
+  --text-secondary: #d8d8de;
+  --text-value: #e4e4ea;
+  --text-muted: #a8a8b3;
+  --border: #2c2e38;
+  --border-soft: #262832;
+  --shadow-card: rgba(0,0,0,0.35);
+  --shadow-main: rgba(0,0,0,0.45);
+  --hover-bg: #262838;
+  --table-head-bg: #24262f;
+  --nav-bg: #1a1b22;
+  --nav-border: #2c2e38;
+  --modal-close-bg: #2c2e38;
+  --info-bg: #33290f;
+  --info-text: #f0c96b;
+  --error-bg: #331a1a;
+  --error-text: #ff9999;
+  --spinner-track: #2c2e38;
+  --accent: #7c8ff0;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 
 .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 20px 28px; color: white; }
-.header-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.header-location { font-size: 12px; opacity: 0.8; letter-spacing: 0.05em; text-transform: uppercase; }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.header-location { font-size: 12px; opacity: 0.85; letter-spacing: 0.05em; text-transform: uppercase; }
 .header-title { font-size: 20px; font-weight: 700; margin-top: 2px; }
-.header-time { font-size: 11px; opacity: 0.7; margin-top: 3px; }
-.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; white-space: nowrap; }
-.refresh-btn:active { background: rgba(255,255,255,0.35); }
+.header-time { font-size: 11px; opacity: 0.8; margin-top: 3px; }
+.header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.refresh-btn, .theme-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; white-space: nowrap; }
+.refresh-btn:active, .theme-toggle:active { background: rgba(255,255,255,0.35); }
+.theme-toggle { padding: 6px 10px; font-size: 14px; line-height: 1; }
 
-.main-temp-card { background: white; margin: -16px 16px 0; border-radius: 20px; padding: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: space-between; }
-.main-temp-left { flex: 1; }
-.main-temp-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
-.main-temp-value { font-size: 48px; font-weight: 300; color: #1a1a2e; line-height: 1; }
-.main-temp-value sup { font-size: 20px; font-weight: 400; color: #888; vertical-align: super; }
+.main-temp-card { background: var(--card-bg); margin: -16px 16px 0; border-radius: 20px; padding: 18px; box-shadow: 0 4px 24px var(--shadow-main); display: flex; align-items: center; justify-content: space-between; }
+.main-temp-left { flex: 1; min-width: 0; }
+.main-temp-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+.main-temp-value-row { display: flex; align-items: baseline; gap: 8px; }
+.main-temp-value { font-size: 48px; font-weight: 300; color: var(--text-primary); line-height: 1; }
+.main-temp-value sup { font-size: 20px; font-weight: 400; color: var(--text-muted); vertical-align: super; }
+.trend-arrow { font-size: 20px; font-weight: 700; }
+.trend-up { color: #e8604c; }
+.trend-down { color: #4a9edd; }
+.trend-flat { color: var(--text-muted); }
 .main-temp-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
-.normales-row { margin-top: 6px; font-size: 10px; color: #bbb; line-height: 1.8; }
-.meta-item { font-size: 11px; color: #aaa; line-height: 1.5; }
-.meta-item b { display: block; font-size: 13px; font-weight: 600; color: #333; }
-.meta-item span { font-size: 10px; color: #bbb; }
+.normales-row { margin-top: 6px; font-size: 10px; color: var(--text-muted); line-height: 1.8; }
+.meta-item { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.meta-item b { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.meta-item span { font-size: 10px; color: var(--text-muted); }
 .main-temp-icon { font-size: 52px; line-height: 1; margin-left: 12px; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
-.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card { background: var(--card-bg); border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .kpi-card.full { grid-column: span 2; }
 .kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
@@ -39,64 +94,71 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .kpi-icon.amber { background: #fff8e6; }
 .kpi-icon.purple { background: #f3eeff; }
 .kpi-icon.pink { background: #fff0f5; }
-.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
-.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
+:root[data-theme="dark"] .kpi-icon.blue { background: #1c3550; }
+:root[data-theme="dark"] .kpi-icon.teal { background: #123c33; }
+:root[data-theme="dark"] .kpi-icon.amber { background: #3a2f10; }
+:root[data-theme="dark"] .kpi-icon.purple { background: #2a2350; }
+:root[data-theme="dark"] .kpi-icon.pink { background: #3a1f2c; }
+.kpi-card-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: var(--text-muted); }
 .kpi-sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 7px; }
-.kpi-sub-item { font-size: 10px; color: #bbb; line-height: 1.6; }
-.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: #555; }
-.kpi-sub-item span { font-size: 10px; color: #ccc; }
-.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
-.kpi-sub-single b { color: #555; font-weight: 500; }
+.kpi-sub-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.kpi-sub-item { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
+.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: var(--text-value); }
+.kpi-sub-item span { display: block; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-sub-ecart { margin-top: 1px; }
+.kpi-sub-single { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: var(--text-value); font-weight: 500; }
 .rec-badge { display:inline-block; font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:3px; vertical-align:middle; white-space:nowrap; }
 .rec-badge.rec-10 { background:#eef0ff; color:#8890c0; font-weight:600; }
 .rec-badge.rec-3 { background:#ffe0d6; color:#c0392b; font-size:9px; }
 .rec-badge.rec-1 { background:#ffd700; color:#7a4a00; font-size:10px; padding:2px 6px; box-shadow:0 0 0 1px #ffb300, 0 0 5px rgba(255,180,0,0.7); animation: recPulse 1.4s ease-in-out infinite; }
 @keyframes recPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
 
-.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
-.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: var(--card-bg); border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.chart-card-title em { font-size: 11px; color: var(--text-muted); font-style: normal; margin-left: auto; }
 
 /* TABLEAU HORAIRE */
 .table-section { padding: 0 16px 24px; }
-.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.table-card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 2px 12px var(--shadow-card); overflow: hidden; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th { background: var(--table-head-bg); color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
 thead th:first-child { text-align: left; padding-left: 12px; }
-tbody tr { border-bottom: 0.5px solid #f5f5f5; cursor: pointer; transition: background 0.15s; }
-tbody tr:hover { background: #f9f9ff; }
+tbody tr { border-bottom: 0.5px solid var(--border-soft); cursor: pointer; transition: background 0.15s; }
+tbody tr:hover { background: var(--hover-bg); }
 tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
-tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #667eea; }
+tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: var(--text-secondary); }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: var(--accent); }
 
 /* MODAL DÉTAIL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: flex-end; }
-.modal { background: white; border-radius: 20px 20px 0 0; width: 100%; max-height: 70vh; overflow-y: auto; padding: 20px 16px 32px; }
+.modal { background: var(--card-bg); border-radius: 20px 20px 0 0; width: 100%; max-height: 70vh; overflow-y: auto; padding: 20px 16px 32px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; }
-.modal-close { background: #f0f0f0; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.modal-close { background: var(--modal-close-bg); color: var(--text-primary); border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.detail-table th { color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 8px; text-align: center; border-bottom: 1px solid #f0f0f0; }
+.detail-table th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--border); }
 .detail-table th:first-child { text-align: left; }
-.detail-table td { padding: 7px 8px; text-align: center; border-bottom: 0.5px solid #f5f5f5; color: #333; }
-.detail-table td:first-child { text-align: left; font-weight: 600; color: #667eea; }
+.detail-table td { padding: 7px 8px; text-align: center; border-bottom: 0.5px solid var(--border-soft); color: var(--text-secondary); }
+.detail-table td:first-child { text-align: left; font-weight: 600; color: var(--accent); }
 .detail-table tr:last-child td { border-bottom: none; }
 
-.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
-.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+.loading { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--spinner-track); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: var(--error-bg); border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: var(--error-text); }
 @keyframes spin { to { transform: rotate(360deg); } }
-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
-nav a.active { color: #667eea; font-weight: 600; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 1px solid var(--nav-border); display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: var(--text-muted); font-size: 10px; gap: 3px; }
+nav a.active { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
-<div style="background:#fff8e6;color:#8a6d1a;font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
+<div style="background:var(--info-bg);color:var(--info-text);font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
 <div id="app"><div class="loading"><div class="spinner"></div>Chargement...</div></div>
 <div id="modal-container"></div>
 
@@ -139,6 +201,31 @@ function n(v) { return (v!==null&&v!==''&&v!==undefined) ? parseFloat(v) : null;
 function fmt(v, d=1) { return (v!==null&&v!==''&&v!==undefined) ? parseFloat(v).toFixed(d) : '—'; }
 function pad(x) { return String(x).padStart(2,'0'); }
 function tempIcon(t) { if(t===null) return'🌡️'; if(t>=35) return'🥵'; if(t>=25) return'☀️'; if(t>=15) return'🌤️'; if(t>=5) return'🌥️'; return'🥶'; }
+
+// Icône combinant température + pluie du jour + vent, pas juste la température seule
+function weatherIcon(t, pluieTotal, ventMoy, ventRafale) {
+  const pluie = n(pluieTotal), rafale = n(ventRafale), vent = n(ventMoy);
+  if (pluie !== null && pluie >= 15) return '⛈️';
+  if (pluie !== null && pluie > 0.2) return t !== null && t >= 22 ? '🌦️' : '🌧️';
+  if (rafale !== null && rafale >= 60) return '💨';
+  if (vent !== null && vent >= 30) return '🌬️';
+  return tempIcon(t);
+}
+
+// Flèche de tendance : compare la dernière valeur d'une série à celle d'il y a ~backMinutes
+function trendArrow(rows, field, backMinutes = 30, threshold = 0.3) {
+  if (!rows || rows.length < 2) return '';
+  const stepMin = 5;
+  const back = Math.max(1, Math.min(rows.length - 1, Math.round(backMinutes / stepMin)));
+  const now = n(rows[rows.length - 1][field]);
+  const prev = n(rows[rows.length - 1 - back][field]);
+  if (now === null || prev === null) return '';
+  const diff = now - prev;
+  if (Math.abs(diff) < threshold) return '<span class="trend-arrow trend-flat" title="Stable sur 30 min">→</span>';
+  return diff > 0
+    ? '<span class="trend-arrow trend-up" title="En hausse sur 30 min">↗</span>'
+    : '<span class="trend-arrow trend-down" title="En baisse sur 30 min">↘</span>';
+}
 
 // Échelle de couleur : bleu (froid) → rouge (chaud) pour temp, bleu → orange pour pluie/vent
 function heatColor(val, min, max, type='default') {
@@ -439,7 +526,7 @@ async function loadData() {
         WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris')
       `),
       queryBQ(`
-        SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel,
+        SELECT tempAvg AS temp_actuelle, windspeedAvg AS vent_actuel,
                humidityAvg AS hum_actuelle, humidityHigh AS hum_high_actuelle, humidityLow AS hum_low_actuelle,
                pressureMax AS pression_actuelle,
                solarRadiationHigh AS soleil_actuel,
@@ -520,7 +607,7 @@ async function loadData() {
       if(val===null||val===undefined||!isFinite(val)) return '';
       const d = parseFloat((val-ref).toFixed(1));
       const sign = d>=0?'+':'';
-      const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'#999';
+      const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'var(--text-muted)';
       return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+sign+d+'°</span>';
     }
     const _ecartMax = _ecart(n(k.temp_max), _nr.tmax);
@@ -531,7 +618,7 @@ async function loadData() {
     function _ecartPluiePct(val, refProrata) {
       if(val===null||val===undefined||!isFinite(val)||!refProrata||refProrata<=0) return '';
       const pct = Math.round((val/refProrata)*100);
-      const col = pct>=150?'#0d47a1':pct>=110?'#4a9edd':pct<=50?'#b71c1c':pct<=90?'#e8604c':'#999';
+      const col = pct>=150?'#0d47a1':pct>=110?'#4a9edd':pct<=50?'#b71c1c':pct<=90?'#e8604c':'var(--text-muted)';
       return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+pct+'% norm.</span>';
     }
     const joursDansMoisCourant = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
@@ -568,25 +655,31 @@ async function loadData() {
             <div class="header-title">Suivi journée en cours</div>
             <div class="header-time">${dateStr} · dernière donnée ${last.heure||'—'}</div>
           </div>
-          <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
+          <div class="header-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" aria-label="Changer de thème">🌙</button>
+            <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
+          </div>
         </div>
       </div>
 
       <div class="main-temp-card">
         <div class="main-temp-left">
           <div class="main-temp-label">Température actuelle</div>
-          <div class="main-temp-value">${fmt(tempActuelle)}<sup>°C</sup></div>
+          <div class="main-temp-value-row">
+            <div class="main-temp-value">${fmt(tempActuelle)}<sup>°C</sup></div>
+            ${trendArrow(rows, 'tempAvg', 30)}
+          </div>
           <div class="main-temp-meta">
             <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C${_ecartMax}${bTempMax}</b><span>${ex.heure_temp_max||'—'}</span></div>
             <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C${_ecartMin}${bTempMin}</b><span>${ex.heure_temp_min||'—'}</span></div>
             <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C${_ecartMoy}${bTempMoy}</b></div>
             <div class="meta-item"><b>Δ ${delta}°C${bAmplitude}</b></div>
           </div>
-          <div style="font-size:9px;color:#ccc;margin-top:5px;line-height:1.4;">
+          <div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4;">
             Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)
           </div>
         </div>
-        <div class="main-temp-icon">${tempIcon(tempActuelle)}</div>
+        <div class="main-temp-icon">${weatherIcon(tempActuelle, k.pluie_total, k.vent_moy_jour, k.vent_rafale_max)}</div>
       </div>
 
       <div class="kpi-grid">
@@ -596,8 +689,8 @@ async function loadData() {
           <div class="kpi-sub-grid">
             <div class="kpi-sub-item"><b>${fmt(k.pluie_rate_max)} mm/h${bIntensite}</b><span>Intensité max</span></div>
             <div class="kpi-sub-item"><b>${ex.heure_pluie_max||'—'}</b><span>heure max</span></div>
-            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_mois))} mm${_ecartPluieMois}</b><span>Cumul du mois</span></div>
-            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_annee))} mm${_ecartPluieAnnee}</b><span>Cumul de l'année</span></div>
+            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_mois))} mm</b><span>Cumul du mois</span><div class="kpi-sub-ecart">${_ecartPluieMois}</div></div>
+            <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_annee))} mm</b><span>Cumul de l'année</span><div class="kpi-sub-ecart">${_ecartPluieAnnee}</div></div>
           </div>
         </div>
         <div class="kpi-card">
@@ -617,7 +710,7 @@ async function loadData() {
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon pink">💦</div><div class="kpi-card-title">Humidité</div></div>
           <div class="kpi-card-value">${fmt(n(last.hum_actuelle),0)}<span class="kpi-card-unit">%</span></div>
-          <div class="kpi-sub-grid">
+          <div class="kpi-sub-grid kpi-sub-grid-3">
             <div class="kpi-sub-item"><b>↑ ${fmt(k.humidite_max,0)}%</b><span>${ex.heure_hum_max||'—'}</span></div>
             <div class="kpi-sub-item"><b>↓ ${fmt(k.humidite_min,0)}%</b><span>${ex.heure_hum_min||'—'}</span></div>
             <div class="kpi-sub-item"><b>Moy ${fmt(k.humidite_moy,0)}%</b><span>journée</span></div>
@@ -658,6 +751,7 @@ async function loadData() {
         <canvas id="cPression"></canvas>
       </div>
     `;
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 
     makeChart('cTemp','line',labels,[
       {label:'Max',data:rows.map(r=>n(r.tempHigh)),borderColor:'#e8604c',backgroundColor:'transparent',tension:0.4,pointRadius:0,borderWidth:2},
@@ -901,7 +995,7 @@ async function loadData() {
       if(val===null||val===undefined||!isFinite(val)) return '';
       const d = parseFloat((val-ref).toFixed(1));
       const sign = d>=0?'+':'';
-      const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'#999';
+      const col = d>=5?'#b71c1c':d>=0.5?'#e8604c':d<=-5?'#0d47a1':d<=-0.5?'#4a9edd':'var(--text-muted)';
       return '<span style="color:'+col+';font-size:10px;font-weight:600;margin-left:3px;">'+sign+d+'°</span>';
     }
     const _ecartMax = _ecart(n(k.temp_max), _nr.tmax);
@@ -911,6 +1005,25 @@ async function loadData() {
     document.getElementById('app').innerHTML = `<div style="padding:16px"><div class="error">${e.quotaExceeded ? '☁️ Plus de Go pour aujourd\'hui — quota quotidien BigQuery atteint, réessaie demain.' : '⚠️ '+e.message}</div></div>`;
   }
 }
+
+const THEME_KEY = 'meteo-theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+initTheme();
 
 loadData();
 setInterval(loadData, 5*60*1000);
