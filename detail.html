@@ -116,6 +116,12 @@ input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); }
 .chart-scope { display: flex; gap: 4px; margin-left: auto; }
 .scope-btn { border: 1px solid var(--border); border-radius: 14px; padding: 4px 10px; font-size: 11px; font-weight: 600; background: var(--card-bg); color: var(--text-muted); cursor: pointer; }
 .scope-btn.active { background: #c0392b; border-color: #c0392b; color: #fff; }
+.chart-note { margin: -4px 0 10px; }
+.chart-note summary { font-size: 11px; font-weight: 600; color: var(--text-muted); cursor: pointer; list-style: none; display: flex; align-items: center; gap: 4px; user-select: none; }
+.chart-note summary::-webkit-details-marker { display: none; }
+.chart-note[open] summary .arr { transform: rotate(180deg); }
+.chart-note .arr { display: inline-block; transition: transform 0.2s; font-size: 9px; }
+.chart-note-body { font-size: 11px; color: var(--text-secondary); line-height: 1.7; padding: 8px 10px; margin-top: 6px; background: var(--hover-bg); border-radius: 10px; }
 
 .table-section { padding: 0 16px 24px; }
 .table-card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 2px 12px var(--shadow-card); overflow: hidden; }
@@ -381,6 +387,21 @@ function hexToRgba(hex, alpha) {
   const r = parseInt(hex.substring(1,3),16), g = parseInt(hex.substring(3,5),16), b = parseInt(hex.substring(5,7),16);
   return 'rgba('+r+','+g+','+b+','+alpha+')';
 }
+
+const TEMP_RECORD_NOTE = '<details class="chart-note"><summary>ⓘ Comment ça marche <span class="arr">▾</span></summary><div class="chart-note-body">'
+  +'Coche un type pour afficher son top 10 sur le graphique (ligne #1 en couleur pleine, les 9 suivantes en dégradé).<br>'
+  +'🔺 Record max · 🔻 Record min<br>'
+  +'🔼 Min max = jour le plus « frais » (le plus petit maximum jamais atteint)<br>'
+  +'🔽 Max min = nuit la plus « douce » (le plus grand minimum jamais atteint)<br>'
+  +'🔥 Moy max · ❄️ Moy min = moyenne journalière la plus élevée / la plus basse<br>'
+  +'Mois = le mois calendaire de la date affichée, toutes années confondues · Total = record absolu'
+  +'</div></details>';
+const PLUIE_RECORD_NOTE = '<details class="chart-note"><summary>ⓘ Comment ça marche <span class="arr">▾</span></summary><div class="chart-note-body">'
+  +'Coche un type pour afficher son top 10 sur le graphique.<br>'
+  +'📅 Max en 1 jour = comparé à la courbe de cumul (axe de droite)<br>'
+  +'💧 Intensité max = comparé aux points d\'intensité (axe de gauche)<br>'
+  +'Mois = le mois calendaire de la date affichée, toutes années confondues · Total = record absolu'
+  +'</div></details>';
 
 function buildRecordCheckboxes() {
   return RECORD_TYPES.map(function(t) {
@@ -719,6 +740,7 @@ async function loadData() {
             +'<button type="button" class="scope-btn'+(recScope==='all'?' active':'')+'" data-scope="all" data-label="Total" onclick="setRecordScope(\'all\')">'+(recScope==='all'?'✓ ':'')+'Total</button>'
           +'</div>'
         +'</div>'
+        +TEMP_RECORD_NOTE
         +'<canvas id="cTemp"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>🌧️ Pluie</span><em>mm</em></div>'
         +'<div class="chart-controls">'+buildPluieRecordCheckboxes()
@@ -727,6 +749,7 @@ async function loadData() {
             +'<button type="button" class="scope-btn'+(pluieScope==='all'?' active':'')+'" data-scope="all" data-label="Total" onclick="setPluieRecordScope(\'all\')">'+(pluieScope==='all'?'✓ ':'')+'Total</button>'
           +'</div>'
         +'</div>'
+        +PLUIE_RECORD_NOTE
         +'<canvas id="cPluie"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div><canvas id="cVent"></canvas></div>'
       +'<div class="chart-card"><div class="chart-card-title"><span>☀️ Rayonnement</span><em>W/m²</em></div><canvas id="cSoleil"></canvas></div>'
