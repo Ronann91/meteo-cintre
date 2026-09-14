@@ -6,8 +6,58 @@
 <title>Météo — Cintré | Bilan mensuel (V2)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #333333;
+  --text-value: #555555;
+  --text-muted: #aaaaaa;
+  --text-faint: #cccccc;
+  --border: #f0f0f0;
+  --border-soft: #f5f5f5;
+  --shadow-card: rgba(0,0,0,0.05);
+  --shadow-main: rgba(0,0,0,0.08);
+  --hover-bg: #f9f9ff;
+  --table-head-bg: #f7f8fa;
+  --nav-bg: #ffffff;
+  --nav-border: #eeeeee;
+  --modal-close-bg: #f0f0f0;
+  --info-bg: #fff8e6;
+  --info-text: #8a6d1a;
+  --error-bg: #fff5f5;
+  --error-text: #e53e3e;
+  --spinner-track: #f0f0f0;
+  --accent: #667eea;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14151a;
+  --card-bg: #1e2028;
+  --text-primary: #f2f2f5;
+  --text-secondary: #d8d8de;
+  --text-value: #e4e4ea;
+  --text-muted: #a8a8b3;
+  --text-faint: #8a8a95;
+  --border: #2c2e38;
+  --border-soft: #262832;
+  --shadow-card: rgba(0,0,0,0.35);
+  --shadow-main: rgba(0,0,0,0.45);
+  --hover-bg: #262838;
+  --table-head-bg: #24262f;
+  --nav-bg: #1a1b22;
+  --nav-border: #2c2e38;
+  --modal-close-bg: #2c2e38;
+  --info-bg: #33290f;
+  --info-text: #f0c96b;
+  --error-bg: #331a1a;
+  --error-text: #ff9999;
+  --spinner-track: #2c2e38;
+  --accent: #7c8ff0;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 .top-bar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 14px 16px 26px; color: white; }
 .top-bar-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .top-bar-title { font-size: 18px; font-weight: 700; }
@@ -15,63 +65,70 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .top-bar-controls { display: flex; gap: 8px; align-items: center; }
 input[type=month] { border: none; background: rgba(255,255,255,0.2); color: white; border-radius: 20px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 input[type=month]::-webkit-calendar-picker-indicator { filter: invert(1); }
-.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.refresh-btn, .theme-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.theme-toggle { padding: 6px 10px; font-size: 14px; line-height: 1; }
 .quick-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
 .quick-btn { background: rgba(255,255,255,0.15); border: none; border-radius: 12px; padding: 4px 10px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.8); cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em; }
 .quick-btn.active { background: white; color: #667eea; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
-.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card { background: var(--card-bg); border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .kpi-card.full { grid-column: span 2; }
 .kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
 .kpi-icon.blue { background: #e8f4ff; } .kpi-icon.teal { background: #e6f9f3; }
 .kpi-icon.amber { background: #fff8e6; } .kpi-icon.purple { background: #f3eeff; }
 .kpi-icon.pink { background: #fff0f5; } .kpi-icon.red { background: #fff0ee; }
-.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
-.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
+:root[data-theme="dark"] .kpi-icon.blue { background: #1c3550; }
+:root[data-theme="dark"] .kpi-icon.teal { background: #123c33; }
+:root[data-theme="dark"] .kpi-icon.amber { background: #3a2f10; }
+:root[data-theme="dark"] .kpi-icon.purple { background: #2a2350; }
+:root[data-theme="dark"] .kpi-icon.pink { background: #3a1f2c; }
+:root[data-theme="dark"] .kpi-icon.red { background: #3a1f1c; }
+.kpi-card-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: var(--text-muted); }
 .kpi-sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 7px; }
 .kpi-sub-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 7px; }
 .kpi-sub-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; margin-top: 7px; }
-.kpi-sub-item { font-size: 10px; color: #bbb; line-height: 1.6; }
-.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: #555; }
-.kpi-sub-item span { font-size: 10px; color: #ccc; }
-.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
-.kpi-sub-single b { color: #555; font-weight: 500; }
+.kpi-sub-item { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
+.kpi-sub-item b { display: block; font-size: 12px; font-weight: 600; color: var(--text-value); }
+.kpi-sub-item span { font-size: 10px; color: var(--text-faint); }
+.kpi-sub-single { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: var(--text-value); font-weight: 500; }
 
-.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
-.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: var(--card-bg); border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.chart-card-title em { font-size: 11px; color: var(--text-faint); font-style: normal; margin-left: auto; }
 .wind-rose-wrap { display: flex; justify-content: center; padding: 8px 0 4px; }
 
 .table-section { padding: 0 16px 24px; }
-.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.table-card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 2px 12px var(--shadow-card); overflow: hidden; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th { background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+thead th { background: var(--table-head-bg); color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
 thead th:first-child { text-align: left; padding-left: 12px; }
-tbody tr { border-bottom: 0.5px solid #f5f5f5; }
-tbody tr:hover { background: #f9f9ff; }
+tbody tr { border-bottom: 0.5px solid var(--border-soft); }
+tbody tr:hover { background: var(--hover-bg); }
 tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: #333; }
-tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #667eea; }
+tbody td { padding: 7px 6px; text-align: center; font-weight: 500; color: var(--text-secondary); }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: var(--accent); }
 
-.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
-.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+.loading { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--spinner-track); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: var(--error-bg); border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: var(--error-text); }
 @keyframes spin { to { transform: rotate(360deg); } }
-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
-nav a.active { color: #667eea; font-weight: 600; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 1px solid var(--nav-border); display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: var(--text-muted); font-size: 10px; gap: 3px; }
+nav a.active { color: var(--accent); font-weight: 600; }
 .pb { padding-bottom: 80px; }
 </style>
 </head>
 <body>
-<div style="background:#fff8e6;color:#8a6d1a;font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
+<div style="background:var(--info-bg);color:var(--info-text);font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
 
 <div class="top-bar">
   <div class="top-bar-row1">
@@ -83,6 +140,7 @@ nav a.active { color: #667eea; font-weight: 600; }
       <input type="date" id="dateStart" onchange="loadData()" style="border:none;background:rgba(255,255,255,0.2);color:white;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">
       <span style="color:white;opacity:0.7;font-size:11px;">→</span>
       <input type="date" id="dateEnd" onchange="loadData()" style="border:none;background:rgba(255,255,255,0.2);color:white;border-radius:20px;padding:6px 10px;font-size:12px;cursor:pointer;">
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" aria-label="Changer de thème">🌙</button>
       <button class="refresh-btn" onclick="loadData()">↻</button>
     </div>
   </div>
@@ -240,19 +298,21 @@ function makeChart(id,type,labels,datasets,opts){
   opts=opts||{};
   if(charts[id])charts[id].destroy();
   const ctx=document.getElementById(id).getContext('2d');
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const legendColor = isDark ? '#a8a8b3' : '#6b6b6b'; // contraste ≥4.5:1 (vs #ccc ~1.6:1)
   const units={cTemp:'°C',cPluie:' mm',cVent:' km/h',cSoleil:'h'};
   const scales={
     x:{ticks:{color:'#ccc',font:{size:9},maxTicksLimit:15},grid:{color:'rgba(0,0,0,0.03)'}},
     y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},beginAtZero:opts.y0!==false}
   };
-  if(opts.y2)scales.y2={position:'right',ticks:{color:'#1a3a6a',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true};
+  if(opts.y2)scales.y2={position:'right',ticks:{color:isDark?'#7c9fd8':'#1a3a6a',font:{size:9}},grid:{drawOnChartArea:false},beginAtZero:true};
   charts[id]=new Chart(ctx,{
     type:type,
     data:{labels:labels,datasets:datasets},
     options:{
       responsive:true,maintainAspectRatio:true,aspectRatio:1.6,animation:false,
       plugins:{
-        legend:{display:datasets.length>1,labels:{color:'#ccc',font:{size:10},boxWidth:10,padding:6}},
+        legend:{display:datasets.length>1,labels:{color:legendColor,font:{size:10},boxWidth:10,padding:6}},
         tooltip:{mode:'index',intersect:false,callbacks:{label:function(c){return c.dataset.label+': '+parseFloat(c.parsed.y).toFixed(1)+(units[id]||'');}}}
       },
       scales:scales
@@ -262,6 +322,7 @@ function makeChart(id,type,labels,datasets,opts){
 
 function drawWindRose(canvas, n_pct, s_pct, e_pct, o_pct){
   const ctx = canvas.getContext('2d');
+  const isDarkRose = document.documentElement.getAttribute('data-theme') === 'dark';
   const cx = canvas.width/2, cy = canvas.height/2;
   const maxR = Math.min(cx,cy)*0.7;
   const dirs = [
@@ -276,7 +337,7 @@ function drawWindRose(canvas, n_pct, s_pct, e_pct, o_pct){
   [0.25,0.5,0.75,1].forEach(function(f){
     ctx.beginPath();
     ctx.arc(cx,cy,maxR*f,0,Math.PI*2);
-    ctx.strokeStyle='rgba(0,0,0,0.07)';
+    ctx.strokeStyle = isDarkRose ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)';
     ctx.lineWidth=1;
     ctx.stroke();
   });
@@ -286,7 +347,7 @@ function drawWindRose(canvas, n_pct, s_pct, e_pct, o_pct){
     ctx.beginPath();
     ctx.moveTo(cx,cy);
     ctx.lineTo(cx+Math.cos(a)*maxR,cy+Math.sin(a)*maxR);
-    ctx.strokeStyle='rgba(0,0,0,0.1)';
+    ctx.strokeStyle = isDarkRose ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)';
     ctx.lineWidth=1;
     ctx.stroke();
   });
@@ -304,7 +365,7 @@ function drawWindRose(canvas, n_pct, s_pct, e_pct, o_pct){
     const lr = maxR+16;
     const lx = cx+Math.cos(d.angle)*lr;
     const ly = cy+Math.sin(d.angle)*lr;
-    ctx.fillStyle='#555';
+    ctx.fillStyle = isDarkRose ? '#d8d8de' : '#555';
     ctx.font='bold 11px sans-serif';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
@@ -504,7 +565,7 @@ async function loadData(){
           +'<div class="kpi-card-header"><div class="kpi-icon purple">📊</div><div class="kpi-card-title">Moyenne du mois</div></div>'
           +'<div class="kpi-card-value">'+fmt(n(k.temp_moy))+'<span class="kpi-card-unit">°C</span>'+ecartNorm(n(k.temp_moy),normMoyRef)+'</div>'
           +'<div class="kpi-sub-single">Amplitude <b>'+fmt(n(k.amplitude))+'°C</b></div>'
-          +'<div style="font-size:9px;color:#ccc;margin-top:4px;">Écart sur la température moyenne quotidienne vs normales Rennes-St-Jacques 1991–2020</div>'
+          +'<div style="font-size:9px;color:var(--text-faint);margin-top:4px;">Écart sur la température moyenne quotidienne vs normales Rennes-St-Jacques 1991–2020</div>'
         +'</div>'
         +'<div class="kpi-card">'
           +'<div class="kpi-card-header"><div class="kpi-icon amber">🌡️</div><div class="kpi-card-title">Seuils journaliers</div></div>'
@@ -523,7 +584,7 @@ async function loadData(){
         +'<div class="kpi-card">'
           +'<div class="kpi-card-header"><div class="kpi-icon blue">💧</div><div class="kpi-card-title">Total mensuel</div></div>'
           +'<div class="kpi-card-value">'+fmt(n(k.pluie_total),1)+'<span class="kpi-card-unit"> mm</span>'+ecartPluiePct(n(k.pluie_total),pluieNormRef)+'</div>'
-          +'<div style="font-size:9px;color:#ccc;margin-top:4px;">vs normale Rennes-Saint-Jacques 1991–2020, proratisée sur la période</div>'
+          +'<div style="font-size:9px;color:var(--text-faint);margin-top:4px;">vs normale Rennes-Saint-Jacques 1991–2020, proratisée sur la période</div>'
           +'<div class="kpi-sub-grid">'
             +'<div class="kpi-sub-item"><b>'+((s.nb_pluie1||0)-(s.nb_pluie10||0))+' j</b><span>1-10 mm</span></div>'
             +'<div class="kpi-sub-item"><b>'+(s.nb_pluie10||0)+' j</b><span>≥ 10 mm</span></div>'
@@ -675,16 +736,19 @@ async function loadData(){
       if(charts['cTempNorm']) charts['cTempNorm'].destroy();
       const ctx = document.getElementById('cTempNorm');
       if(!ctx) return;
+      const isDarkNorm = document.documentElement.getAttribute('data-theme') === 'dark';
+      const legendColorNorm = isDarkNorm ? '#a8a8b3' : '#6b6b6b';
+      const normLineColor = isDarkNorm ? '#e8e8f0' : '#1a1a2e'; // sinon invisible sur card-bg sombre
       charts['cTempNorm'] = new Chart(ctx.getContext('2d'), {
         type:'line',
         data:{labels:labels,datasets:[
-          {label:'Normale',data:normData,borderColor:'#1a1a2e',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2},
+          {label:'Normale',data:normData,borderColor:normLineColor,backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2},
           {label:'Observée',data:obsData,borderColor:'rgba(0,0,0,0)',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:0}
         ]},
         options:{
           responsive:true,maintainAspectRatio:true,aspectRatio:1.6,animation:false,
           plugins:{
-            legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:10,padding:6,
+            legend:{display:true,labels:{color:legendColorNorm,font:{size:10},boxWidth:10,padding:6,
               filter:function(item){return item.datasetIndex===0;}
             }},
             tooltip:{mode:'index',intersect:false,callbacks:{
@@ -708,10 +772,11 @@ async function loadData(){
     })();
 
     // Graphique pluie
+    const isDarkPluie = document.documentElement.getAttribute('data-theme') === 'dark';
     makeChart('cPluie','bar',labels,[
       {label:'Précip. (mm)',data:days.map(function(r){return n(r.pluie);}),backgroundColor:'rgba(74,158,221,0.7)',borderRadius:2,yAxisID:'y'},
       {label:'Intensité max (mm/h)',data:days.map(function(r){return n(r.intensite_max)>0?n(r.intensite_max):null;}),type:'scatter',borderColor:'rgba(0,0,0,0)',backgroundColor:'#e8604c',pointRadius:5,pointStyle:'circle',yAxisID:'y'},
-      {label:'Cumul (mm)',data:pluieCumul,type:'line',borderColor:'#1a1a2e',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2,yAxisID:'y2'}
+      {label:'Cumul (mm)',data:pluieCumul,type:'line',borderColor:isDarkPluie?'#e8e8f0':'#1a1a2e',backgroundColor:'transparent',tension:0.3,pointRadius:0,borderWidth:2,yAxisID:'y2'}
     ],{y0:true,y2:true});
 
     // Graphique vent
@@ -739,6 +804,26 @@ async function loadData(){
   document.getElementById('dateStart').value = firstDay.getFullYear()+'-'+pad(firstDay.getMonth()+1)+'-01';
   document.getElementById('dateEnd').value = lastDay.getFullYear()+'-'+pad(lastDay.getMonth()+1)+'-'+pad(lastDay.getDate());
 })();
+
+const THEME_KEY = 'meteo-theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+  loadData(); // rebuild les graphiques avec les couleurs du nouveau thème
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+initTheme();
 
 loadData();
 </script>

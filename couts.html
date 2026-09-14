@@ -6,55 +6,108 @@
 <title>Météo — Cintré | Coûts BigQuery</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #333333;
+  --text-value: #555555;
+  --text-muted: #6b6b6b;
+  --border: #f0f0f0;
+  --border-soft: #f5f5f5;
+  --shadow-card: rgba(0,0,0,0.05);
+  --shadow-main: rgba(0,0,0,0.08);
+  --hover-bg: #f9f9ff;
+  --table-head-bg: #f7f8fa;
+  --nav-bg: #ffffff;
+  --nav-border: #eeeeee;
+  --modal-close-bg: #f0f0f0;
+  --info-bg: #fff8e6;
+  --info-text: #8a6d1a;
+  --error-bg: #fff5f5;
+  --error-text: #e53e3e;
+  --spinner-track: #f0f0f0;
+  --accent: #667eea;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14151a;
+  --card-bg: #1e2028;
+  --text-primary: #f2f2f5;
+  --text-secondary: #d8d8de;
+  --text-value: #e4e4ea;
+  --text-muted: #a8a8b3;
+  --border: #2c2e38;
+  --border-soft: #262832;
+  --shadow-card: rgba(0,0,0,0.35);
+  --shadow-main: rgba(0,0,0,0.45);
+  --hover-bg: #262838;
+  --table-head-bg: #24262f;
+  --nav-bg: #1a1b22;
+  --nav-border: #2c2e38;
+  --modal-close-bg: #2c2e38;
+  --info-bg: #33290f;
+  --info-text: #f0c96b;
+  --error-bg: #331a1a;
+  --error-text: #ff9999;
+  --spinner-track: #2c2e38;
+  --accent: #7c8ff0;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 .top-bar { background: linear-gradient(135deg, #0ba360 0%, #1f6f5c 100%); padding: 14px 16px 26px; color: white; }
 .top-bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .top-bar-title { font-size: 18px; font-weight: 700; }
 .top-bar-sub { font-size: 11px; opacity: 0.75; }
-.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.refresh-btn, .theme-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.theme-toggle { padding: 6px 10px; font-size: 14px; line-height: 1; }
 .day-picker-group { display: flex; align-items: center; gap: 6px; }
 .day-input { background: rgba(255,255,255,0.15); border: none; border-radius: 10px; padding: 3px 8px; font-size: 10px; color: white; }
 .day-input::-webkit-calendar-picker-indicator { filter: invert(1); }
 .kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 0; }
-.kpi-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.kpi-card { background: var(--card-bg); border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .kpi-card.full { grid-column: span 2; }
 .kpi-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .kpi-icon { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
 .kpi-icon.green { background: #e6f9f3; } .kpi-icon.amber { background: #fff8e6; } .kpi-icon.blue { background: #e8f4ff; } .kpi-icon.red { background: #fff0ee; }
-.kpi-card-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-.kpi-card-value { font-size: 26px; font-weight: 600; color: #1a1a2e; line-height: 1; }
-.kpi-card-unit { font-size: 13px; font-weight: 400; color: #aaa; }
-.kpi-sub-single { font-size: 11px; color: #aaa; margin-top: 6px; line-height: 1.6; }
-.kpi-sub-single b { color: #555; font-weight: 500; }
+:root[data-theme="dark"] .kpi-icon.green { background: #123c33; }
+:root[data-theme="dark"] .kpi-icon.amber { background: #3a2f10; }
+:root[data-theme="dark"] .kpi-icon.blue { background: #1c3550; }
+:root[data-theme="dark"] .kpi-icon.red { background: #3a1f1f; }
+.kpi-card-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.kpi-card-value { font-size: 26px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+.kpi-card-unit { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.kpi-sub-single { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+.kpi-sub-single b { color: var(--text-value); font-weight: 500; }
 .gauge-wrap { margin-top: 10px; }
-.gauge-bar { height: 8px; border-radius: 4px; background: #f0f0f0; overflow: hidden; }
+.gauge-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
 .gauge-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
-.gauge-label { font-size: 10px; color: #bbb; margin-top: 4px; display: flex; justify-content: space-between; }
-.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
+.gauge-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between; }
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
 .range-group { display: flex; gap: 4px; flex-wrap: wrap; }
-.range-btn { background: #eee; border: none; border-radius: 12px; padding: 4px 10px; font-size: 10px; font-weight: 700; color: #999; cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em; }
+.range-btn { background: var(--border); border: none; border-radius: 12px; padding: 4px 10px; font-size: 10px; font-weight: 700; color: var(--text-muted); cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em; }
 .range-btn.active { background: #0ba360; color: white; }
 .range-btn-dark { background: rgba(255,255,255,0.15); border: none; border-radius: 10px; padding: 3px 10px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.75); cursor: pointer; text-transform: uppercase; letter-spacing: 0.03em; }
 .range-btn-dark.active { background: white; color: #0ba360; }
 .custom-range-row { display: flex; align-items: center; gap: 6px; margin: 0 16px 10px; flex-wrap: wrap; }
-.custom-range-row input[type=date] { border: 1px solid #eee; border-radius: 8px; padding: 4px 8px; font-size: 11px; color: #555; background: white; }
-.custom-range-row .sep { font-size: 10px; color: #bbb; }
-.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.custom-range-row input[type=date] { border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font-size: 11px; color: var(--text-value); background: var(--card-bg); }
+.custom-range-row .sep { font-size: 10px; color: var(--text-muted); }
+.chart-card { background: var(--card-bg); border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.note { font-size: 10px; color: #bbb; padding: 4px 16px 20px; line-height: 1.6; }
-.def-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
-.def-item { padding: 8px 0; border-bottom: 0.5px solid #f5f5f5; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.note { font-size: 10px; color: var(--text-muted); padding: 4px 16px 20px; line-height: 1.6; }
+.def-card { background: var(--card-bg); border-radius: 16px; margin: 0 16px 10px; padding: 14px 16px; box-shadow: 0 2px 12px var(--shadow-card); }
+.def-item { padding: 8px 0; border-bottom: 0.5px solid var(--border-soft); }
 .def-item:last-child { border-bottom: none; }
-.def-term { font-size: 12px; font-weight: 700; color: #1a1a2e; margin-bottom: 3px; }
-.def-text { font-size: 11px; color: #666; line-height: 1.5; }
-.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
-.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #0ba360; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+.def-term { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+.def-text { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.loading { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--spinner-track); border-top-color: #0ba360; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: var(--error-bg); border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: var(--error-text); }
 @keyframes spin { to { transform: rotate(360deg); } }
-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 1px solid var(--nav-border); display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: var(--text-muted); font-size: 10px; gap: 3px; }
 nav a.active { color: #0ba360; font-weight: 600; }
 .pb { padding-bottom: 80px; }
 </style>
@@ -66,6 +119,7 @@ nav a.active { color: #0ba360; font-weight: 600; }
       <div style="font-size:11px;opacity:0.75;">📍 mystic-aileron-471209-p6</div>
       <div class="top-bar-title">💰 Coûts BigQuery</div>
     </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" aria-label="Changer de thème">🌙</button>
     <button class="refresh-btn" onclick="loadAll()">↻ Actualiser</button>
   </div>
   <div class="top-bar-row" style="margin-top:4px;">
@@ -435,6 +489,8 @@ async function loadChart() {
     const hasAutre = labels.some(d => (splitByDay[d]||{}).autre > 0);
     if (charts['cVolume']) charts['cVolume'].destroy();
     const ctx = document.getElementById('cVolume').getContext('2d');
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const legendColor = isDark ? '#a8a8b3' : '#6b6b6b'; // contraste ≥4.5:1 (vs #999/#ccc ~2.3:1)
     charts['cVolume'] = new Chart(ctx, {
       data: {
         labels: labels,
@@ -510,13 +566,13 @@ async function loadChart() {
       options: {
         responsive: true, maintainAspectRatio: true, aspectRatio: 1.4, animation: false,
         plugins: {
-          legend: {display: true, labels: {color:'#999', font:{size:10}, boxWidth:10, padding:6}},
+          legend: {display: true, labels: {color:legendColor, font:{size:10}, boxWidth:10, padding:6}},
           tooltip: {mode:'index', intersect:false}
         },
         scales: {
-          x: {ticks:{color:'#ccc',font:{size:9},maxTicksLimit:10}, grid:{color:'rgba(0,0,0,0.03)'}},
+          x: {ticks:{color:legendColor,font:{size:9},maxTicksLimit:10}, grid:{color:'rgba(0,0,0,0.03)'}},
           y: {position:'left', ticks:{color:'#0ba360',font:{size:9}}, grid:{color:'rgba(0,0,0,0.03)'}, beginAtZero:true, title:{display:true,text:'Go',color:'#0ba360',font:{size:9}}},
-          yNb: {position:'right', ticks:{color:'#999',font:{size:9}}, grid:{drawOnChartArea:false}, beginAtZero:true, title:{display:true,text:'requêtes',color:'#999',font:{size:9}}}
+          yNb: {position:'right', ticks:{color:legendColor,font:{size:9}}, grid:{drawOnChartArea:false}, beginAtZero:true, title:{display:true,text:'requêtes',color:legendColor,font:{size:9}}}
         }
       }
     });
@@ -527,6 +583,35 @@ async function loadChart() {
   }
 }
 
+const THEME_KEY = 'meteo-theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+  // Recolore la légende/les ticks du graphique sans relancer la requête BigQuery.
+  if (charts['cVolume']) {
+    const isDark = next === 'dark';
+    const legendColor = isDark ? '#a8a8b3' : '#6b6b6b';
+    const c = charts['cVolume'];
+    c.options.plugins.legend.labels.color = legendColor;
+    c.options.scales.x.ticks.color = legendColor;
+    c.options.scales.yNb.ticks.color = legendColor;
+    c.options.scales.yNb.title.color = legendColor;
+    c.update();
+  }
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+initTheme();
 loadAll();
 </script>
 </body>

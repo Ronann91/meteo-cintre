@@ -6,76 +6,127 @@
 <title>Météo — Cintré | Climatologie (V2)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #333333;
+  --text-value: #555555;
+  --text-muted: #6b6b6b;
+  --border: #f0f0f0;
+  --border-soft: #f5f5f5;
+  --shadow-card: rgba(0,0,0,0.05);
+  --shadow-main: rgba(0,0,0,0.08);
+  --hover-bg: #f9f9ff;
+  --table-head-bg: #f7f8fa;
+  --nav-bg: #ffffff;
+  --nav-border: #eeeeee;
+  --modal-close-bg: #f0f0f0;
+  --info-bg: #fff8e6;
+  --info-text: #8a6d1a;
+  --error-bg: #fff5f5;
+  --error-text: #e53e3e;
+  --spinner-track: #f0f0f0;
+  --accent: #667eea;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14151a;
+  --card-bg: #1e2028;
+  --text-primary: #f2f2f5;
+  --text-secondary: #d8d8de;
+  --text-value: #e4e4ea;
+  --text-muted: #a8a8b3;
+  --border: #2c2e38;
+  --border-soft: #262832;
+  --shadow-card: rgba(0,0,0,0.35);
+  --shadow-main: rgba(0,0,0,0.45);
+  --hover-bg: #262838;
+  --table-head-bg: #24262f;
+  --nav-bg: #1a1b22;
+  --nav-border: #2c2e38;
+  --modal-close-bg: #2c2e38;
+  --info-bg: #33290f;
+  --info-text: #f0c96b;
+  --error-bg: #331a1a;
+  --error-text: #ff9999;
+  --spinner-track: #2c2e38;
+  --accent: #7c8ff0;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 .top-bar { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 14px 16px 26px; color: white; }
 .top-bar-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .top-bar-title { font-size: 18px; font-weight: 700; }
 .top-bar-sub { font-size: 11px; opacity: 0.75; min-height: 16px; }
-.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.top-bar-controls { display: flex; gap: 8px; align-items: center; }
+.refresh-btn, .theme-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.theme-toggle { padding: 6px 10px; font-size: 14px; line-height: 1; }
 
-.year-picker { background: white; margin: 0 16px; border-radius: 16px; padding: 12px 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); margin-top: -18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.year-picker-label { font-size: 10px; color: #aaa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100%; }
+.year-picker { background: var(--card-bg); margin: 0 16px; border-radius: 16px; padding: 12px 14px; box-shadow: 0 2px 12px var(--shadow-card); margin-top: -18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.year-picker-label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100%; }
 .year-cb { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 .year-cb input { accent-color: #11998e; width: 14px; height: 14px; cursor: pointer; }
-.year-cb span { font-size: 12px; font-weight: 600; color: #444; }
+.year-cb span { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 
-.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
-.chart-card { background: white; border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.section-header { padding: 18px 16px 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.chart-card { background: var(--card-bg); border-radius: 16px; margin: 0 16px 10px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .chart-card-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-.chart-card-title span { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.chart-card-title em { font-size: 11px; color: #ccc; font-style: normal; margin-left: auto; }
+.chart-card-title span { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.chart-card-title em { font-size: 11px; color: var(--text-muted); font-style: normal; margin-left: auto; }
 
 .table-section { padding: 0 16px 10px; }
-.table-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 10px; }
-.table-title { font-size: 12px; font-weight: 700; color: #444; padding: 12px 14px 4px; }
+.table-card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 2px 12px var(--shadow-card); overflow: hidden; margin-bottom: 10px; }
+.table-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); padding: 12px 14px 4px; }
 .table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }
 table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
-thead th { position: sticky; top: 0; z-index: 3; background: #f7f8fa; color: #aaa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 5px; text-align: center; border-bottom: 1px solid #e8e8e8; white-space: nowrap; }
-thead th:first-child { text-align: left; padding-left: 12px; position: sticky; top: 0; left: 0; z-index: 4; background: #f7f8fa; }
-tbody tr { border-bottom: 0.5px solid #f5f5f5; }
-tbody tr:hover td { background: #f0fff8 !important; }
+thead th { position: sticky; top: 0; z-index: 3; background: var(--table-head-bg); color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 7px 5px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+thead th:first-child { text-align: left; padding-left: 12px; position: sticky; top: 0; left: 0; z-index: 4; background: var(--table-head-bg); }
+tbody tr { border-bottom: 0.5px solid var(--border-soft); }
+tbody tr:hover td { background: var(--hover-bg) !important; }
 tbody tr:last-child { border-bottom: none; }
-tbody td { padding: 6px 5px; text-align: center; font-weight: 500; color: #333; white-space: nowrap; border-bottom: 0.5px solid #f5f5f5; }
-tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #11998e; position: sticky; left: 0; z-index: 1; background: white; border-right: 1px solid #eee; }
+tbody td { padding: 6px 5px; text-align: center; font-weight: 500; color: var(--text-value); white-space: nowrap; border-bottom: 0.5px solid var(--border-soft); }
+tbody td:first-child { text-align: left; padding-left: 12px; font-weight: 700; color: #11998e; position: sticky; left: 0; z-index: 1; background: var(--card-bg); border-right: 1px solid var(--border); }
 
-.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
-.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #11998e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+.loading { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--spinner-track); border-top-color: #11998e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: var(--error-bg); border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: var(--error-text); }
 @keyframes spin { to { transform: rotate(360deg); } }
-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 1px solid var(--nav-border); display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: var(--text-muted); font-size: 10px; gap: 3px; }
 nav a.active { color: #11998e; font-weight: 600; }
 .pb { padding-bottom: 80px; }
-.tab-bar { display: flex; gap: 0; padding: 0 16px 12px; border-bottom: 1px solid #f0f0f0; background: white; position: sticky; top: 0; z-index: 10; }
-.tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600; border: none; background: none; cursor: pointer; color: #aaa; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.tab-bar { display: flex; gap: 0; padding: 0 16px 12px; border-bottom: 1px solid var(--border); background: var(--card-bg); position: sticky; top: 0; z-index: 10; }
+.tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600; border: none; background: none; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.2s; }
 .tab-btn.active { color: #11998e; border-bottom-color: #11998e; }
 .tab-section { display: none; }
 .tab-section.active { display: block; }
 .modal-overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:flex-end; }
-.modal { background:white;border-radius:20px 20px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:16px; }
+.modal { background:var(--card-bg);border-radius:20px 20px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:16px; }
 .modal-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:12px; }
-.modal-title { font-size:14px;font-weight:700;color:#1a1a2e; }
-.modal-close { background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:4px 8px; }
+.modal-title { font-size:14px;font-weight:700;color:var(--text-primary); }
+.modal-close { background:var(--modal-close-bg);border:none;font-size:18px;color:var(--text-muted);cursor:pointer;padding:4px 8px;border-radius:50%; }
 .detail-table { width:100%;border-collapse:collapse;font-size:11px; }
-.detail-table th { background:#f7f8fa;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:7px 6px;text-align:center;border-bottom:1px solid #f0f0f0;white-space:nowrap; }
-.detail-table td { padding:6px;text-align:center;font-weight:500;color:#333;border-bottom:0.5px solid #f5f5f5; }
+.detail-table th { background:var(--table-head-bg);color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:7px 6px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap; }
+.detail-table td { padding:6px;text-align:center;font-weight:500;color:var(--text-value);border-bottom:0.5px solid var(--border-soft); }
 .detail-table td:first-child { text-align:left;font-weight:700;color:#11998e; }
-.month-picker { background: white; margin: 8px 16px 0; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); overflow: hidden; }
+.month-picker { background: var(--card-bg); margin: 8px 16px 0; border-radius: 16px; box-shadow: 0 2px 12px var(--shadow-card); overflow: hidden; }
 .month-picker-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; user-select: none; }
-.month-picker-header span { font-size: 10px; color: #aaa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.month-picker-header span { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 .month-picker-header em { font-size: 11px; color: #11998e; font-style: normal; font-weight: 600; }
-.month-picker-body { display: none; padding: 8px 14px 12px; border-top: 1px solid #f0f0f0; }
+.month-picker-body { display: none; padding: 8px 14px 12px; border-top: 1px solid var(--border); }
 .month-picker-body.open { display: flex; flex-wrap: wrap; gap: 6px; }
 .month-cb { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .month-cb input { accent-color: #11998e; width: 13px; height: 13px; cursor: pointer; }
-.month-cb span { font-size: 11px; font-weight: 600; color: #555; }
+.month-cb span { font-size: 11px; font-weight: 600; color: var(--text-value); }
 .month-shortcuts { display: flex; gap: 6px; margin-bottom: 8px; width: 100%; }
 .month-shortcut { font-size: 10px; color: #11998e; cursor: pointer; background: #e6f9f3; border: none; border-radius: 8px; padding: 3px 8px; font-weight: 600; }
+:root[data-theme="dark"] .month-shortcut { background: #123c33; }
 </style>
 </head>
 <body>
-<div style="background:#fff8e6;color:#8a6d1a;font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
+<div style="background:var(--info-bg);color:var(--info-text);font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
 
 <div class="top-bar">
   <div class="top-bar-row1">
@@ -83,7 +134,10 @@ nav a.active { color: #11998e; font-weight: 600; }
       <div style="font-size:11px;opacity:0.75;">📍 Cintré, Bretagne</div>
       <div class="top-bar-title">🌍 Climatologie annuelle</div>
     </div>
-    <button class="refresh-btn" onclick="doLoadData()">↻ Actualiser</button>
+    <div class="top-bar-controls">
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" aria-label="Changer de thème">🌙</button>
+      <button class="refresh-btn" onclick="doLoadData()">↻ Actualiser</button>
+    </div>
   </div>
   <div class="top-bar-sub" id="top-sub">Chargement...</div>
 </div>
@@ -231,10 +285,35 @@ function heatColor(val,min,max,type){
 
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
+function themeColors(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {isDark:isDark, legend: isDark ? '#a8a8b3' : '#6b6b6b', tick: isDark ? '#8a8a95' : '#ccc'};
+}
+
 function makeChart(id, config){
   destroyChart(id);
   const ctx = document.getElementById(id);
   if(!ctx)return;
+  const tc = themeColors();
+  const isDark = tc.isDark;
+  const legendColor = tc.legend;
+  const tickColor = tc.tick;
+  if (config.plugins && config.plugins.legend && config.plugins.legend.labels) {
+    config.plugins.legend.labels.color = legendColor;
+  }
+  if (config.scales) {
+    Object.keys(config.scales).forEach(function(k){
+      const sc = config.scales[k];
+      if (sc.ticks && (sc.ticks.color==='#999'||sc.ticks.color==='#ccc')) sc.ticks.color = tickColor;
+      if (sc.title && (sc.title.color==='#999'||sc.title.color==='#ccc')) sc.title.color = tickColor;
+    });
+  }
+  if (config.data && config.data.datasets) {
+    // '#1a1a2e' est notre "quasi-noir" pour faire ressortir une courbe — invisible sur le fond de carte sombre (#1e2028)
+    config.data.datasets.forEach(function(ds){
+      if (ds.borderColor === '#1a1a2e') ds.borderColor = isDark ? '#f2f2f5' : '#1a1a2e';
+    });
+  }
   charts[id] = new Chart(ctx.getContext('2d'), config);
 }
 
@@ -650,7 +729,7 @@ function renderCumulChart(){
     beforeDatasetsDraw:function(chart){
       const {ctx, chartArea:{top,bottom}, scales:{x}} = chart;
       ctx.save();
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.strokeStyle = document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)';
       ctx.lineWidth = 1;
       cumulLabels.forEach(function(lbl,i){
         if(!lbl) return;
@@ -762,6 +841,7 @@ function buildSJComparison(){
   const ctxEl = document.getElementById('cCompSJ');
   if(ctxEl){
     if(charts['cCompSJ']) charts['cCompSJ'].destroy();
+    const tc846 = themeColors();
     charts['cCompSJ'] = new Chart(ctxEl.getContext('2d'), {
       type:'line',
       data:{labels:labels, datasets:[
@@ -771,7 +851,7 @@ function buildSJComparison(){
       options:{
         responsive:true,maintainAspectRatio:true,aspectRatio:1.6,animation:false,
         plugins:{
-          legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:10,padding:6}},
+          legend:{display:true,labels:{color:tc846.legend,font:{size:10},boxWidth:10,padding:6}},
           tooltip:{mode:'index',intersect:false,callbacks:{
             label:function(c){
               if(c.parsed.y===null) return null;
@@ -780,8 +860,8 @@ function buildSJComparison(){
           }}
         },
         scales:{
-          x:{ticks:{color:'#ccc',font:{size:8},maxRotation:45,maxTicksLimit:24},grid:{color:'rgba(0,0,0,0.03)'}},
-          y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:'#ccc',font:{size:9}}}
+          x:{ticks:{color:tc846.tick,font:{size:8},maxRotation:45,maxTicksLimit:24},grid:{color:'rgba(0,0,0,0.03)'}},
+          y:{ticks:{color:tc846.tick,font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:tc846.tick,font:{size:9}}}
         }
       }
     });
@@ -876,6 +956,7 @@ function buildSJChart(labels, myTm, sjTm){
   const ctxEl = document.getElementById('cCompSJ');
   if(!ctxEl) return;
   if(charts['cCompSJ']) charts['cCompSJ'].destroy();
+  const tc959 = themeColors();
   charts['cCompSJ'] = new Chart(ctxEl.getContext('2d'), {
     type:'line',
     data:{labels:labels, datasets:[
@@ -885,7 +966,7 @@ function buildSJChart(labels, myTm, sjTm){
     options:{
       responsive:true,maintainAspectRatio:true,aspectRatio:1.6,animation:false,
       plugins:{
-        legend:{display:true,labels:{color:'#999',font:{size:10},boxWidth:10,padding:6}},
+        legend:{display:true,labels:{color:tc959.legend,font:{size:10},boxWidth:10,padding:6}},
         tooltip:{mode:'index',intersect:false,callbacks:{
           label:function(c){
             if(c.parsed.y===null) return null;
@@ -894,8 +975,8 @@ function buildSJChart(labels, myTm, sjTm){
         }}
       },
       scales:{
-        x:{ticks:{color:'#ccc',font:{size:8},maxRotation:45,maxTicksLimit:24},grid:{color:'rgba(0,0,0,0.03)'}},
-        y:{ticks:{color:'#ccc',font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:'#ccc',font:{size:9}}}
+        x:{ticks:{color:tc959.tick,font:{size:8},maxRotation:45,maxTicksLimit:24},grid:{color:'rgba(0,0,0,0.03)'}},
+        y:{ticks:{color:tc959.tick,font:{size:9}},grid:{color:'rgba(0,0,0,0.03)'},title:{display:true,text:'°C',color:tc959.tick,font:{size:9}}}
       }
     }
   });
@@ -967,7 +1048,26 @@ function tabClimat(){ if(typeof selectTab==='function') selectTab('climat'); }
 function tabSJ(){ if(typeof selectTab==='function') selectTab('sj'); }
 function doLoadData(){ if(typeof loadData==='function') loadData(); }
 
+const THEME_KEY = 'meteo-theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+
 // Init
+initTheme();
 initYears();
 </script>
 </body>

@@ -5,52 +5,106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Météo — Cintré | Records (V2)</title>
 <style>
+:root {
+  --bg: #f7f8fa;
+  --card-bg: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #333333;
+  --text-value: #555555;
+  --text-muted: #6b6b6b;
+  --border: #f0f0f0;
+  --border-soft: #f5f5f5;
+  --shadow-card: rgba(0,0,0,0.05);
+  --shadow-main: rgba(0,0,0,0.08);
+  --hover-bg: #f9f9ff;
+  --table-head-bg: #f7f8fa;
+  --nav-bg: #ffffff;
+  --nav-border: #eeeeee;
+  --modal-close-bg: #f0f0f0;
+  --info-bg: #fff8e6;
+  --info-text: #8a6d1a;
+  --error-bg: #fff5f5;
+  --error-text: #e53e3e;
+  --spinner-track: #f0f0f0;
+  --accent: #667eea;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #14151a;
+  --card-bg: #1e2028;
+  --text-primary: #f2f2f5;
+  --text-secondary: #d8d8de;
+  --text-value: #e4e4ea;
+  --text-muted: #a8a8b3;
+  --border: #2c2e38;
+  --border-soft: #262832;
+  --shadow-card: rgba(0,0,0,0.35);
+  --shadow-main: rgba(0,0,0,0.45);
+  --hover-bg: #262838;
+  --table-head-bg: #24262f;
+  --nav-bg: #1a1b22;
+  --nav-border: #2c2e38;
+  --modal-close-bg: #2c2e38;
+  --info-bg: #33290f;
+  --info-text: #f0c96b;
+  --error-bg: #331a1a;
+  --error-text: #ff9999;
+  --spinner-track: #2c2e38;
+  --accent: #7c8ff0;
+  color-scheme: dark;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fa; color: #1a1a2e; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; transition: background 0.2s, color 0.2s; }
 .top-bar { background: linear-gradient(135deg, #e8604c 0%, #c0392b 100%); padding: 14px 16px 26px; color: white; }
 .top-bar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .top-bar-title { font-size: 18px; font-weight: 700; }
 .top-bar-sub { font-size: 11px; opacity: 0.75; }
-.refresh-btn { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.refresh-btn, .theme-toggle { background: rgba(255,255,255,0.2); border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; color: white; cursor: pointer; }
+.theme-toggle { padding: 6px 10px; font-size: 14px; line-height: 1; }
 .month-filter { display: flex; overflow-x: auto; gap: 6px; padding: 12px 16px; scrollbar-width: none; }
 .month-filter::-webkit-scrollbar { display: none; }
-.month-btn { flex-shrink: 0; border: 1.5px solid #e0e0e0; border-radius: 20px; padding: 5px 12px; font-size: 12px; background: white; color: #555; cursor: pointer; white-space: nowrap; }
+.month-btn { flex-shrink: 0; border: 1.5px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; background: var(--card-bg); color: var(--text-value); cursor: pointer; white-space: nowrap; }
 .month-btn.active { background: #e8604c; border-color: #e8604c; color: white; font-weight: 600; }
 .card-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 0 16px; margin-bottom: 4px; }
-.record-card { background: white; border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.record-card { background: var(--card-bg); border-radius: 16px; padding: 14px; box-shadow: 0 2px 12px var(--shadow-card); }
 .record-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .record-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
 .record-icon.red { background: #fff0ee; } .record-icon.blue { background: #e8f4ff; }
 .record-icon.amber { background: #fff8e6; } .record-icon.teal { background: #e6f9f3; } .record-icon.purple { background: #f3eeff; }
-.record-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; line-height: 1.3; }
-.record-value { font-size: 28px; font-weight: 300; color: #1a1a2e; line-height: 1; }
-.record-unit { font-size: 14px; color: #aaa; }
-.record-date { font-size: 11px; color: #aaa; margin: 4px 0 8px; }
-.record-date b { color: #555; }
-.record-extra { font-size: 11px; color: #888; margin: -4px 0 8px; }
-details summary { font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 4px; user-select: none; }
+:root[data-theme="dark"] .record-icon.red { background: #3a231f; }
+:root[data-theme="dark"] .record-icon.blue { background: #1c3550; }
+:root[data-theme="dark"] .record-icon.amber { background: #3a2f10; }
+:root[data-theme="dark"] .record-icon.teal { background: #123c33; }
+:root[data-theme="dark"] .record-icon.purple { background: #2a2350; }
+.record-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; line-height: 1.3; }
+.record-value { font-size: 28px; font-weight: 300; color: var(--text-primary); line-height: 1; }
+.record-unit { font-size: 14px; color: var(--text-muted); }
+.record-date { font-size: 11px; color: var(--text-muted); margin: 4px 0 8px; }
+.record-date b { color: var(--text-value); }
+.record-extra { font-size: 11px; color: var(--text-muted); margin: -4px 0 8px; }
+details summary { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 4px; user-select: none; }
 details summary::-webkit-details-marker { display: none; }
 details[open] summary .arr { transform: rotate(180deg); }
 .arr { display: inline-block; transition: transform 0.2s; font-size: 9px; }
 .top10-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-.top10-table tr { border-bottom: 0.5px solid #f5f5f5; }
+.top10-table tr { border-bottom: 0.5px solid var(--border-soft); }
 .top10-table tr:last-child { border-bottom: none; }
-.top10-table td { padding: 5px 3px; font-size: 11px; color: #555; }
-.top10-table td:first-child { width: 20px; font-weight: 700; color: #ccc; font-size: 10px; }
-.top10-table td:nth-child(2) { font-weight: 600; color: #1a1a2e; }
-.top10-table td:last-child { color: #aaa; text-align: right; font-size: 10px; }
+.top10-table td { padding: 5px 3px; font-size: 11px; color: var(--text-value); }
+.top10-table td:first-child { width: 20px; font-weight: 700; color: var(--text-muted); font-size: 10px; }
+.top10-table td:nth-child(2) { font-weight: 600; color: var(--text-primary); }
+.top10-table td:last-child { color: var(--text-muted); text-align: right; font-size: 10px; }
 .rank-1 { color: #e8604c !important; } .rank-2 { color: #888 !important; } .rank-3 { color: #b8860b !important; }
-.section-title { padding: 14px 16px 8px; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.07em; }
-.loading { text-align: center; padding: 4rem 1rem; color: #bbb; }
-.spinner { width: 30px; height: 30px; border: 3px solid #f0f0f0; border-top-color: #e8604c; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
-.error { background: #fff5f5; border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: #e53e3e; }
+.section-title { padding: 14px 16px 8px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.loading { text-align: center; padding: 4rem 1rem; color: var(--text-muted); }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--spinner-track); border-top-color: #e8604c; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+.error { background: var(--error-bg); border-radius: 16px; padding: 14px 16px; margin: 16px; font-size: 13px; color: var(--error-text); }
 @keyframes spin { to { transform: rotate(360deg); } }
-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; z-index: 50; }
-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: #aaa; font-size: 10px; gap: 3px; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--nav-bg); border-top: 1px solid var(--nav-border); display: flex; z-index: 50; }
+nav a { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0; text-decoration: none; color: var(--text-muted); font-size: 10px; gap: 3px; }
 nav a.active { color: #e8604c; font-weight: 600; }
 .pb { padding-bottom: 80px; }
-.tab-bar { display: flex; gap: 0; padding: 0 16px 12px; border-bottom: 1px solid #f0f0f0; background: white; position: sticky; top: 0; z-index: 10; }
-.tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600; border: none; background: none; cursor: pointer; color: #aaa; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.tab-bar { display: flex; gap: 0; padding: 0 16px 12px; border-bottom: 1px solid var(--border); background: var(--card-bg); position: sticky; top: 0; z-index: 10; }
+.tab-btn { flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600; border: none; background: none; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.2s; }
 .tab-btn.active { color: #e8604c; border-bottom-color: #e8604c; }
 .tab-section { display: none; }
 .tab-section.active { display: block; }
@@ -58,14 +112,17 @@ nav a.active { color: #e8604c; font-weight: 600; }
 </style>
 </head>
 <body>
-<div style="background:#fff8e6;color:#8a6d1a;font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
+<div style="background:var(--info-bg);color:var(--info-text);font-size:10px;text-align:center;padding:5px 8px;line-height:1.4;">ℹ️ Données à ~15 min près (retard de remontée côté station, hors de notre contrôle) · rafraîchi toutes les 5 min</div>
 <div class="top-bar">
   <div class="top-bar-row">
     <div>
       <div style="font-size:11px;opacity:0.75;">📍 Cintré, Bretagne</div>
       <div class="top-bar-title">🏆 Records</div>
     </div>
-    <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
+    <div style="display:flex;gap:6px;">
+      <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn" aria-label="Changer de thème">🌙</button>
+      <button class="refresh-btn" onclick="loadData()">↻ Actualiser</button>
+    </div>
   </div>
   <div class="top-bar-sub" id="top-sub">Chargement...</div>
 </div>
@@ -352,6 +409,24 @@ async function loadData(){
     document.getElementById('tab-temp').innerHTML='<div style="padding:16px"><div class="error">'+msg+'</div></div>';
   }
 }
+const THEME_KEY = 'meteo-theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeToggleBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(THEME_KEY, next); } catch(e) {}
+  applyTheme(next);
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch(e) {}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+}
+initTheme();
 buildMonthFilter();
 loadData();
 </script>
