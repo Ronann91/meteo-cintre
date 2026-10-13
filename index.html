@@ -253,6 +253,26 @@ function persistPluieRecordPrefs() {
   try { localStorage.setItem(PLUIE_PREFS_KEY, JSON.stringify({on: pluieRecOn, scope: pluieScope})); } catch(e) {}
 }
 
+const VENT_PREFS_KEY = 'meteo_vent_record_prefs_v1';
+const VENT_RECORD_TYPES = [
+  {id:'rafale',  key:'rafale',   icon:'🌪️', label:'Rafale max',      color:'#c0392b'},
+  {id:'ventmoy', key:'vent_moy', icon:'💨', label:'Vent moyen jour', color:'#1d9e75'}
+];
+let ventRecOn = {rafale:false, ventmoy:false};
+let ventScope = 'month';
+function loadVentRecordPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem(VENT_PREFS_KEY));
+    if (p) {
+      VENT_RECORD_TYPES.forEach(function(t){ ventRecOn[t.id] = !!(p.on && p.on[t.id]); });
+      ventScope = p.scope === 'all' ? 'all' : 'month';
+    }
+  } catch(e) {}
+}
+function persistVentRecordPrefs() {
+  try { localStorage.setItem(VENT_PREFS_KEY, JSON.stringify({on: ventRecOn, scope: ventScope})); } catch(e) {}
+}
+
 async function queryBQ(sql) {
   const r = await fetch(PROXY_URL, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:sql})});
   const d = await r.json();
@@ -460,6 +480,17 @@ function getRecordTop10(cache, key, scope) {
   return cache.data[key+'_'+scope] || [];
 }
 
+// Regroupe les valeurs égales d'un top 10 trié : une seule ligne par valeur (libellé « #7–10 »).
+// Sans ça, plusieurs lignes semi-transparentes superposées paraissent en gras comme la #1.
+function groupRecordRanks(values) {
+  const out = [];
+  values.forEach(function(v, i) {
+    const last = out[out.length-1];
+    if (last && last.v === v) last.to = i+1; else out.push({v: v, from: i+1, to: i+1});
+  });
+  return out;
+}
+
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.substring(1,3),16), g = parseInt(hex.substring(3,5),16), b = parseInt(hex.substring(5,7),16);
   return 'rgba('+r+','+g+','+b+','+alpha+')';
@@ -497,6 +528,52 @@ function setRecordScope(scope) {
   renderTempChart();
 }
 
+const VENT_RECORD_NOTE = '<details class="chart-note"><summary>ⓘ Comment ça marche <span class="arr">▾</span></summary><div class="chart-note-body">'
+  +'Coche un type pour afficher son top 10 sur le graphique (ligne #1 en couleur pleine, les suivantes en dégradé ; les ex-aequo partagent une ligne).<br>'
+  +'🌪️ Rafale max = plus forte rafale relevée sur 5 min, à comparer à la courbe des rafales<br>'
+  +'💨 Vent moyen jour = moyenne du vent sur toute une journée : c\'est un niveau de référence, pas une valeur instantanée<br>'
+  +'Mois = ce mois calendaire, toutes années confondues · Total = record absolu'
+  +'</div></details>';
+
+function buildVentRecordCheckboxes() {
+  return VENT_RECORD_TYPES.map(function(t) {
+    return '<label class="chart-check"><input type="checkbox" id="chkVentRec'+t.id+'" '+(ventRecOn[t.id]?'checked':'')+' onchange="toggleVentRecordType(\''+t.id+'\',this.checked)"> '+t.icon+' '+t.label+'</label>';
+  }).join('');
+}
+function toggleVentRecordType(id, checked) { ventRecOn[id] = checked; persistVentRecordPrefs(); if (window.renderVentChart) renderVentChart(); }
+function setVentRecordScope(scope) {
+  ventScope = scope;
+  persistVentRecordPrefs();
+  document.querySelectorAll('#ventRecordScope .scope-btn').forEach(function(b) {
+    const active = b.dataset.scope === scope;
+    b.classList.toggle('active', active);
+    b.textContent = (active ? '✓ ' : '') + b.dataset.label;
+  });
+  if (window.renderVentChart) renderVentChart();
+}
+function ventRecordDatasets(labels) {
+  const out = [];
+  const scopeLabel = ventScope === 'month' ? 'mois' : 'total';
+  VENT_RECORD_TYPES.forEach(function(t) {
+    if (!ventRecOn[t.id]) return;
+    groupRecordRanks(getRecordTop10(lastRecCache, t.key, ventScope)).forEach(function(g) {
+      const rank = g.from;
+      out.push({
+        label: t.icon+' '+t.label+' #'+g.from+(g.to>g.from?'–'+g.to:'')+' ('+scopeLabel+')',
+        data: labels.map(function(){ return g.v; }),
+        borderColor: rank===1 ? t.color : hexToRgba(t.color, 0.35),
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        borderWidth: rank===1 ? 1.8 : 1,
+        borderDash: rank===1 ? [6,4] : [2,3],
+        _hideLegend: rank !== 1,
+        _rec: true
+      });
+    });
+  });
+  return out;
+}
+
 function buildPluieRecordCheckboxes() {
   return PLUIE_RECORD_TYPES.map(function(t) {
     return '<label class="chart-check"><input type="checkbox" id="chkPluieRec'+t.id+'" '+(pluieRecOn[t.id]?'checked':'')+' onchange="togglePluieRecordType(\''+t.id+'\',this.checked)"> '+t.icon+' '+t.label+'</label>';
@@ -526,10 +603,10 @@ function renderTempChart() {
   RECORD_TYPES.forEach(function(t) {
     if (!recOn[t.id]) return;
     const values = getRecordTop10(lastRecCache, t.key, recScope);
-    values.forEach(function(v, i) {
-      const rank = i+1;
+    groupRecordRanks(values).forEach(function(g) {
+      const v = g.v, rank = g.from;
       datasets.push({
-        label: t.icon+' '+t.label+' #'+rank+' ('+scopeLabel+')',
+        label: t.icon+' '+t.label+' #'+g.from+(g.to>g.from?'–'+g.to:'')+' ('+scopeLabel+')',
         data: labels.map(function(){ return v; }),
         borderColor: rank===1 ? t.color : hexToRgba(t.color, 0.35),
         backgroundColor: 'transparent',
@@ -574,10 +651,10 @@ function renderPluieChart() {
     if (!pluieRecOn[t.id]) return;
     const values = getRecordTop10(lastRecCache, t.key, pluieScope);
     const unit = t.axis === 'yCumul' ? ' mm' : ' mm/h';
-    values.forEach(function(v, i) {
-      const rank = i+1;
+    groupRecordRanks(values).forEach(function(g) {
+      const v = g.v, rank = g.from;
       datasets.push({
-        label: t.icon+' '+t.label+' #'+rank+' ('+scopeLabel+')',
+        label: t.icon+' '+t.label+' #'+g.from+(g.to>g.from?'–'+g.to:'')+' ('+scopeLabel+')',
         data: labelsH.map(function(){ return v; }),
         type: 'line',
         borderColor: rank===1 ? t.color : hexToRgba(t.color, 0.35),
@@ -1160,6 +1237,14 @@ async function loadData() {
       </div>
       <div class="chart-card">
         <div class="chart-card-title"><span>💨 Vent</span><em>km/h</em></div>
+        <div class="chart-controls">
+          ${buildVentRecordCheckboxes()}
+          <div class="chart-scope" id="ventRecordScope">
+            <button type="button" class="scope-btn${ventScope==='month'?' active':''}" data-scope="month" data-label="Mois" onclick="setVentRecordScope('month')">${ventScope==='month'?'✓ ':''}Mois</button>
+            <button type="button" class="scope-btn${ventScope==='all'?' active':''}" data-scope="all" data-label="Total" onclick="setVentRecordScope('all')">${ventScope==='all'?'✓ ':''}Total</button>
+          </div>
+        </div>
+        ${VENT_RECORD_NOTE}
         <canvas id="cVent"></canvas>
       </div>
       <div class="chart-card">
@@ -1184,8 +1269,8 @@ async function loadData() {
     renderChronoVent();
     renderChronoSoleil();
 
-    // Graphique vent avec surface colorée par direction (16 secteurs)
-    (function(){
+    // Graphique vent avec surface colorée par direction (16 secteurs) — redessiné quand on coche un record
+    window.renderVentChart = function(){
       // Palette 16 directions : dégradé N(bleu)→E(jaune)→S(rouge)→O(vert)→N
       const DIR16_COLORS = [
         'rgba(102,126,234,0.55)',  // N
@@ -1285,7 +1370,7 @@ async function loadData() {
               borderWidth: 1,
               borderDash: [3,3]
             }
-          ].concat(legendDatasets)
+          ].concat(legendDatasets).concat(ventRecordDatasets(labels))
         },
         options: {
           responsive: true,
@@ -1297,7 +1382,7 @@ async function loadData() {
               display: true,
               labels: {
                 color: '#999', font:{size:10}, boxWidth:12, padding:8,
-                filter: function(item){ return item.datasetIndex >= 1; }
+                filter: function(item, data){ return item.datasetIndex >= 1 && !data.datasets[item.datasetIndex]._hideLegend; }
               }
             },
             tooltip: {
@@ -1309,6 +1394,7 @@ async function loadData() {
                     return 'Vent: '+c.parsed.y.toFixed(1)+' km/h ('+dirToLabel(dir)+')';
                   }
                   if(c.datasetIndex===1) return 'Rafale: '+c.parsed.y.toFixed(1)+' km/h';
+                  if(c.dataset._rec) return c.dataset.label+': '+c.parsed.y.toFixed(1)+' km/h';
                   return null;
                 }
               }
@@ -1321,7 +1407,8 @@ async function loadData() {
         },
         plugins: [coloredFillPlugin]
       });
-    })();
+    };
+    renderVentChart();
 
     makeChart('cSoleil','bar',labels,[
       {label:'Ensoleillement',data:rows.map(r=>n(r.soleil)>150?n(r.soleil):null),backgroundColor:'rgba(245,197,24,0.5)',borderRadius:0,yAxisID:'y'},
@@ -1376,6 +1463,7 @@ function initTheme() {
 initTheme();
 loadRecordPrefs();
 loadPluieRecordPrefs();
+loadVentRecordPrefs();
 
 loadData();
 setInterval(loadData, 5*60*1000);
