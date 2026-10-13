@@ -318,7 +318,10 @@ function heatColor(val, min, max, type='default') {
   return `background:rgba(100,100,200,${0.08 + ratio*0.3});`;
 }
 
-const RECORDS_CACHE_KEY = 'meteo_records_cache_v6';
+// Jour climatologique de la minimale (convention Météo-France) : de 18h UTC la veille à 18h UTC le jour J,
+// soit 20h→20h l'été et 19h→19h l'hiver. Seule la minimale l'utilise ; max, moyenne, amplitude restent de 0h à 0h.
+const CLIM_DAY = "DATE(TIMESTAMP_ADD(obsTimeUtc, INTERVAL 6 HOUR))";
+const RECORDS_CACHE_KEY = 'meteo_records_cache_v7';
 
 function parisDateParts() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
@@ -343,13 +346,17 @@ async function getRecordsCache() {
     return `SELECT val FROM (SELECT ${agg} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE ${notToday}${extraWhere||''}${monthly?monthFilter:''} GROUP BY DATE(obsTimeUtc,"Europe/Paris")${having}) ORDER BY val ${order} LIMIT 10`;
   }
 
+  function qDailyMin(order, monthly) {
+    return `SELECT val FROM (SELECT MIN(tempLow) AS val FROM \`meteo_cintre.raw_data_v2\` WHERE ${CLIM_DAY} < CURRENT_DATE("Europe/Paris")${monthly?` AND EXTRACT(MONTH FROM ${CLIM_DAY}) = ${month}`:''} GROUP BY ${CLIM_DAY}${order==='DESC'?' HAVING COUNT(*)>=280':''}) ORDER BY val ${order} LIMIT 10`;
+  }
+
   const jobs = {};
   ['all','month'].forEach(scope => {
     const m = scope === 'month';
     jobs['temp_max_'+scope]   = qDaily('MAX(tempHigh)', '', 'DESC', m, null);
     jobs['temp_max_min_'+scope] = qDaily('MAX(tempHigh)', '', 'ASC', m, null);
-    jobs['temp_min_'+scope]   = qDaily('MIN(tempLow)', '', 'ASC', m, null);
-    jobs['temp_min_chaud_'+scope] = qDaily('MIN(tempLow)', '', 'DESC', m, null);
+    jobs['temp_min_'+scope]   = qDailyMin('ASC', m);
+    jobs['temp_min_chaud_'+scope] = qDailyMin('DESC', m);
     jobs['temp_moy_'+scope]   = qDaily('AVG(tempAvg)', '', 'DESC', m, 280);
     jobs['temp_moy_min_'+scope] = qDaily('AVG(tempAvg)', '', 'ASC', m, 280);
     jobs['amplitude_'+scope]  = qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'DESC', m, 280);
@@ -880,7 +887,8 @@ async function loadData() {
     const [kpiRes, lastRes, extremesRes, chartRes, hourRes, recCache, cumulRes] = await Promise.all([
       queryBQ(`
         SELECT
-          MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy,
+          MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min_cal, AVG(tempAvg) AS temp_moy,
+          (SELECT MIN(tempLow) FROM \`meteo_cintre.raw_data_v2\` WHERE ${CLIM_DAY} = CURRENT_DATE('Europe/Paris')) AS temp_min,
           SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max,
           MAX(windgustHigh) AS vent_rafale_max,
           AVG(windspeedAvg) AS vent_moy_jour,
@@ -903,14 +911,14 @@ async function loadData() {
       queryBQ(`
         SELECT
           FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal, 'Europe/Paris') AS heure_temp_max,
-          FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal, 'Europe/Paris') AS heure_temp_min,
+          CONCAT(FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal, 'Europe/Paris'), IF(DATE(t_min.obsTimeLocal, 'Europe/Paris') < CURRENT_DATE('Europe/Paris'), ' (veille)', '')) AS heure_temp_min,
           FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal, 'Europe/Paris') AS heure_pluie_max,
           FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal, 'Europe/Paris') AS heure_hum_max,
           FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal, 'Europe/Paris') AS heure_hum_min,
           FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal, 'Europe/Paris') AS heure_vent_max
         FROM
           (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris') ORDER BY tempHigh DESC LIMIT 1) t_max,
-          (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris') ORDER BY tempLow ASC LIMIT 1) t_min,
+          (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` WHERE ${CLIM_DAY} = CURRENT_DATE('Europe/Paris') ORDER BY tempLow ASC LIMIT 1) t_min,
           (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris') ORDER BY precipRate DESC LIMIT 1) p_max,
           (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris') ORDER BY humidityHigh DESC LIMIT 1) h_max,
           (SELECT obsTimeUtc AS obsTimeLocal FROM \`meteo_cintre.raw_data_v2\` WHERE DATE(obsTimeUtc, 'Europe/Paris') = CURRENT_DATE('Europe/Paris') ORDER BY humidityLow ASC LIMIT 1) h_min,
@@ -960,7 +968,7 @@ async function loadData() {
 
     const labels = rows.map(r=>r.heure);
     const tempActuelle = n(last.temp_actuelle);
-    const delta = (n(k.temp_max)!==null&&n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)).toFixed(1) : '—';
+    const delta = (n(k.temp_max)!==null&&n(k.temp_min_cal)!==null) ? (n(k.temp_max)-n(k.temp_min_cal)).toFixed(1) : '—';
     const ensH = parseFloat(k.ens_h||0);
     const ensHH = Math.floor(ensH);
     const ensMM = Math.round((ensH-ensHH)*60);
@@ -1010,7 +1018,7 @@ async function loadData() {
       + recordBadge(recCache, 'temp_min_chaud', n(k.temp_min), false);
     const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false)
       + recordBadge(recCache, 'temp_moy_min', n(k.temp_moy), true);
-    const deltaVal = (n(k.temp_max)!==null && n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)) : null;
+    const deltaVal = (n(k.temp_max)!==null && n(k.temp_min_cal)!==null) ? (n(k.temp_max)-n(k.temp_min_cal)) : null;
     const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false)
       + recordBadge(recCache, 'amplitude_min', deltaVal, true);
     const bPluieJour = recordBadge(recCache, 'pluie_jour', n(k.pluie_total), false);
@@ -1048,7 +1056,7 @@ async function loadData() {
           </div>
           <div class="main-temp-meta">
             <div class="meta-item"><b>↑ ${fmt(k.temp_max)}°C${_ecartMax}${bTempMax}</b><span>${ex.heure_temp_max||'—'}</span></div>
-            <div class="meta-item"><b>↓ ${fmt(k.temp_min)}°C${_ecartMin}${bTempMin}</b><span>${ex.heure_temp_min||'—'}</span></div>
+            <div class="meta-item" title="Minimale de 20h la veille à 20h (19h en hiver), convention Météo-France"><b>↓ ${fmt(k.temp_min)}°C${_ecartMin}${bTempMin}</b><span>${ex.heure_temp_min||'—'}</span></div>
             <div class="meta-item"><b>Moy ${fmt(k.temp_moy)}°C${_ecartMoy}${bTempMoy}</b></div>
             <div class="meta-item"><b>Δ ${delta}°C${bAmplitude}</b></div>
           </div>

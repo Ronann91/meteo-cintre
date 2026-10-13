@@ -250,7 +250,10 @@ function heatColor(val,min,max,type) {
   return '';
 }
 
-const RECORDS_CACHE_KEY = 'meteo_records_cache_detail_v3';
+// Jour climatologique de la minimale (convention Météo-France) : de 18h UTC la veille à 18h UTC le jour J,
+// soit 20h→20h l'été et 19h→19h l'hiver. Seule la minimale l'utilise ; max, moyenne, amplitude restent de 0h à 0h.
+const CLIM_DAY = "DATE(TIMESTAMP_ADD(obsTimeUtc, INTERVAL 6 HOUR))";
+const RECORDS_CACHE_KEY = 'meteo_records_cache_detail_v4';
 
 function todayDateStr() {
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit'}).formatToParts(new Date());
@@ -275,12 +278,17 @@ async function getRecordsCache(month) {
     const having = minCount ? ` HAVING COUNT(*)>=${minCount}` : '';
     return `SELECT val FROM (SELECT ${agg} AS val FROM \`meteo_cintre.raw_data_v2\` WHERE TRUE${extraWhere||''}${monthFilter||''} GROUP BY DATE(obsTimeUtc,"Europe/Paris")${having}) ORDER BY val ${order} LIMIT 10`;
   }
-  async function fetchScope(monthFilter) {
+  // Exclut le jour climatologique de demain (commencé à 18h UTC) ; pour la nuit la plus douce, jours complets uniquement
+  // (un jour à trou de données garde une minimale artificiellement haute)
+  function qDailyMin(order, month) {
+    return `SELECT val FROM (SELECT MIN(tempLow) AS val FROM \`meteo_cintre.raw_data_v2\` WHERE ${CLIM_DAY} <= CURRENT_DATE("Europe/Paris")${month?` AND EXTRACT(MONTH FROM ${CLIM_DAY}) = ${month}`:''} GROUP BY ${CLIM_DAY}${order==='DESC'?' HAVING COUNT(*)>=280':''}) ORDER BY val ${order} LIMIT 10`;
+  }
+  async function fetchScope(monthFilter, month) {
     const jobs = {
       temp_max:       qDaily('MAX(tempHigh)', '', 'DESC', monthFilter, null),
       temp_max_min:   qDaily('MAX(tempHigh)', '', 'ASC', monthFilter, null),
-      temp_min:       qDaily('MIN(tempLow)', '', 'ASC', monthFilter, null),
-      temp_min_chaud: qDaily('MIN(tempLow)', '', 'DESC', monthFilter, null),
+      temp_min:       qDailyMin('ASC', month),
+      temp_min_chaud: qDailyMin('DESC', month),
       temp_moy:       qDaily('AVG(tempAvg)', '', 'DESC', monthFilter, 280),
       temp_moy_min:   qDaily('AVG(tempAvg)', '', 'ASC', monthFilter, 280),
       amplitude:      qDaily('MAX(tempHigh)-MIN(tempLow)', '', 'DESC', monthFilter, 280),
@@ -301,7 +309,7 @@ async function getRecordsCache(month) {
   }
   if (month && !cache.months[month]) {
     const monthFilter = ` AND EXTRACT(MONTH FROM DATE(obsTimeUtc,"Europe/Paris")) = ${month}`;
-    try { cache.months[month] = await fetchScope(monthFilter); } catch(e) { cache.months[month] = {}; }
+    try { cache.months[month] = await fetchScope(monthFilter, month); } catch(e) { cache.months[month] = {}; }
   }
 
   try { localStorage.setItem(RECORDS_CACHE_KEY, JSON.stringify(cache)); } catch(e) {}
@@ -664,11 +672,11 @@ async function loadData() {
   document.getElementById('top-sub').textContent = new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement...</div>';
 
-  const qKpi = "SELECT MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min, AVG(tempAvg) AS temp_moy, SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max, MAX(windgustHigh) AS vent_rafale_max, AVG(windspeedAvg) AS vent_moy_jour, AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min, MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min, AVG(pressureMax) AS pression_moy, SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "'";
+  const qKpi = "SELECT MAX(tempHigh) AS temp_max, MIN(tempLow) AS temp_min_cal, (SELECT MIN(tempLow) FROM `meteo_cintre.raw_data_v2` WHERE " + CLIM_DAY + " = '" + d + "') AS temp_min, AVG(tempAvg) AS temp_moy, SUM(somme) AS pluie_total, MAX(precipRate) AS pluie_rate_max, MAX(windgustHigh) AS vent_rafale_max, AVG(windspeedAvg) AS vent_moy_jour, AVG(humidityAvg) AS humidite_moy, MAX(humidityHigh) AS humidite_max, MIN(humidityLow) AS humidite_min, MAX(pressureMax) AS pression_max, MIN(pressureMin) AS pression_min, AVG(pressureMax) AS pression_moy, SUM(CASE WHEN solarRadiationHigh>120 THEN 5.0/60.0 ELSE 0 END) AS ens_h FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "'";
 
   const qLast = "SELECT tempHigh AS temp_actuelle, windspeedAvg AS vent_actuel, humidityAvg AS hum_actuelle, pressureMax AS pression_actuelle, solarRadiationHigh AS soleil_actuel, FORMAT_TIMESTAMP('%H:%M', obsTimeUtc, 'Europe/Paris') AS heure FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY obsTimeUtc DESC LIMIT 1";
 
-  const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal, 'Europe/Paris') AS heure_temp_max, FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal, 'Europe/Paris') AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal, 'Europe/Paris') AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal, 'Europe/Paris') AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal, 'Europe/Paris') AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal, 'Europe/Paris') AS heure_vent_max, FORMAT_TIMESTAMP('%H:%M', pr_max.obsTimeLocal, 'Europe/Paris') AS heure_pression_max, FORMAT_TIMESTAMP('%H:%M', pr_min.obsTimeLocal, 'Europe/Paris') AS heure_pression_min FROM (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY pressureMax DESC LIMIT 1) pr_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY pressureMin ASC LIMIT 1) pr_min";
+  const qEx = "SELECT FORMAT_TIMESTAMP('%H:%M', t_max.obsTimeLocal, 'Europe/Paris') AS heure_temp_max, CONCAT(FORMAT_TIMESTAMP('%H:%M', t_min.obsTimeLocal, 'Europe/Paris'), IF(DATE(t_min.obsTimeLocal, 'Europe/Paris') < '" + d + "', ' (veille)', '')) AS heure_temp_min, FORMAT_TIMESTAMP('%H:%M', p_max.obsTimeLocal, 'Europe/Paris') AS heure_pluie_max, FORMAT_TIMESTAMP('%H:%M', h_max.obsTimeLocal, 'Europe/Paris') AS heure_hum_max, FORMAT_TIMESTAMP('%H:%M', h_min.obsTimeLocal, 'Europe/Paris') AS heure_hum_min, FORMAT_TIMESTAMP('%H:%M', v_max.obsTimeLocal, 'Europe/Paris') AS heure_vent_max, FORMAT_TIMESTAMP('%H:%M', pr_max.obsTimeLocal, 'Europe/Paris') AS heure_pression_max, FORMAT_TIMESTAMP('%H:%M', pr_min.obsTimeLocal, 'Europe/Paris') AS heure_pression_min FROM (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY tempHigh DESC LIMIT 1) t_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE " + CLIM_DAY + " = '" + d + "' ORDER BY tempLow ASC LIMIT 1) t_min, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY precipRate DESC LIMIT 1) p_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY humidityHigh DESC LIMIT 1) h_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY humidityLow ASC LIMIT 1) h_min, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY windgustHigh DESC LIMIT 1) v_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY pressureMax DESC LIMIT 1) pr_max, (SELECT obsTimeUtc AS obsTimeLocal FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY pressureMin ASC LIMIT 1) pr_min";
 
   const qChart = "SELECT FORMAT_TIMESTAMP('%H:%M', obsTimeUtc, 'Europe/Paris') AS heure, tempHigh, tempLow, AVG(tempAvg) OVER (ORDER BY obsTimeUtc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS tempMoyCumul, somme AS pluie, precipRate AS pluie_rate, windspeedAvg AS vent, windgustHigh AS rafale, winddirAvg AS dir_vent, humidityAvg AS humidite, pressureMax AS pression, solarRadiationHigh AS soleil, tempAvg FROM `meteo_cintre.raw_data_v2` WHERE DATE(obsTimeUtc, 'Europe/Paris') = '" + d + "' ORDER BY obsTimeUtc ASC";
 
@@ -687,7 +695,7 @@ async function loadData() {
     const labels = rows.map(function(r){return r.heure;});
 
     const tempActuelle = n(last.temp_actuelle);
-    const delta = (n(k.temp_max)!==null&&n(k.temp_min)!==null)?(n(k.temp_max)-n(k.temp_min)).toFixed(1):'—';
+    const delta = (n(k.temp_max)!==null&&n(k.temp_min_cal)!==null)?(n(k.temp_max)-n(k.temp_min_cal)).toFixed(1):'—';
     const _nrMois = NORMALES_RENNES[_moisD]||NORMALES_RENNES[1];
     const _keyJourD = pad(_moisD)+'-'+pad(new Date(d+'T12:00:00').getDate());
     const _nrD = NORM_DAILY[_keyJourD] || { tn: _nrMois.tmin, tx: _nrMois.tmax, tm: _nrMois.tmoy };
@@ -698,7 +706,7 @@ async function loadData() {
     const bTempMax = recordBadge(recCache, 'temp_max', n(k.temp_max), false, _moisD);
     const bTempMin = recordBadge(recCache, 'temp_min', n(k.temp_min), true, _moisD);
     const bTempMoy = recordBadge(recCache, 'temp_moy', n(k.temp_moy), false, _moisD);
-    const deltaVal = (n(k.temp_max)!==null && n(k.temp_min)!==null) ? (n(k.temp_max)-n(k.temp_min)) : null;
+    const deltaVal = (n(k.temp_max)!==null && n(k.temp_min_cal)!==null) ? (n(k.temp_max)-n(k.temp_min_cal)) : null;
     const bAmplitude = recordBadge(recCache, 'amplitude', deltaVal, false, _moisD);
     const bPluieJour = recordBadge(recCache, 'pluie_jour', n(k.pluie_total), false, _moisD);
     const bIntensite = recordBadge(recCache, 'intensite', n(k.pluie_rate_max), false, _moisD);
@@ -716,7 +724,7 @@ async function loadData() {
           +'<div class="main-temp-value">'+fmt(n(k.temp_moy))+'<sup>°C</sup></div>'
           +'<div class="main-temp-meta">'
             +'<div class="meta-item"><b>↑ '+fmt(k.temp_max)+'°C'+_eMax+bTempMax+'</b><span>'+( ex.heure_temp_max||'—')+'</span></div>'
-            +'<div class="meta-item"><b>↓ '+fmt(k.temp_min)+'°C'+_eMin+bTempMin+'</b><span>'+(ex.heure_temp_min||'—')+'</span></div>'
+            +'<div class="meta-item" title="Minimale de 20h la veille à 20h (19h en hiver), convention Météo-France"><b>↓ '+fmt(k.temp_min)+'°C'+_eMin+bTempMin+'</b><span>'+(ex.heure_temp_min||'—')+'</span></div>'
             +'<div class="meta-item"><b>Moy '+fmt(k.temp_moy)+'°C'+_eMoy+bTempMoy+'</b></div>'
             +'<div class="meta-item"><b>Δ '+delta+'°C'+bAmplitude+'</b></div>'
           +'</div>'

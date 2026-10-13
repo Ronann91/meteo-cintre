@@ -210,6 +210,11 @@ function selectMonth(i){ selectedMonth=i; buildMonthFilter(); loadData(); }
 
 function monthWhere(){ return selectedMonth===0?'':' AND EXTRACT(MONTH FROM DATE(obsTimeUtc, "Europe/Paris"))='+selectedMonth; }
 function monthWhereT(){ return ' WHERE TRUE'+monthWhere(); }
+// Jour climatologique de la minimale (convention Météo-France) : de 18h UTC la veille à 18h UTC le jour J,
+// soit 20h→20h l'été et 19h→19h l'hiver. Seule la minimale l'utilise ; max, moyenne, amplitude restent de 0h à 0h.
+const CLIM_DAY = "DATE(TIMESTAMP_ADD(obsTimeUtc, INTERVAL 6 HOUR))";
+const NOTE_MIN_CLIM = "Minimale calculée de 20h la veille à 20h le jour même (19h → 19h en hiver), selon la convention Météo-France : une journée = une nuit. Une minimale relevée après 20h compte pour le lendemain.";
+function monthWhereMin(){ return ' WHERE TRUE'+(selectedMonth===0?'':' AND EXTRACT(MONTH FROM '+CLIM_DAY+')='+selectedMonth); }
 function monthWhereP(){ return ' WHERE TRUE AND precipRate < 150'+monthWhere(); }
 
 function recordCard(icon,iconClass,title,value,unit,date,heure,top10,extra,showTm,tend){
@@ -252,10 +257,12 @@ async function loadData(){
   const WP = monthWhereP();   // précipitations : avec precipRate < 150
 
   // ---- Température ----
-  const qDaily="SELECT jour,temp_max,temp_min,temp_moy,amplitude,jour_min_max,jour_max_min FROM (SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(tempHigh) AS temp_max,MIN(tempLow) AS temp_min,AVG(tempAvg) AS temp_moy,MAX(tempHigh)-MIN(tempLow) AS amplitude,MAX(tempHigh) AS jour_min_max,MIN(tempLow) AS jour_max_min FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour HAVING COUNT(*)>=280) ORDER BY jour";
-  const qDailyAll="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(tempHigh) AS temp_max,MIN(tempLow) AS temp_min FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour ORDER BY jour";
+  const WM = monthWhereMin(); // minimale : filtre de mois sur le jour climatologique
+  const qMinClim=function(having){ return "SELECT "+CLIM_DAY+" AS jour,MIN(tempLow) AS temp_min FROM `meteo_cintre.raw_data_v2`"+WM+" GROUP BY jour"+(having?" HAVING COUNT(*)>=280":""); };
+  const qDaily="SELECT COALESCE(c.jour,m.jour) AS jour,c.temp_max,m.temp_min,c.temp_moy,c.amplitude,c.jour_min_max,m.temp_min AS jour_max_min FROM (SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(tempHigh) AS temp_max,AVG(tempAvg) AS temp_moy,MAX(tempHigh)-MIN(tempLow) AS amplitude,MAX(tempHigh) AS jour_min_max FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour HAVING COUNT(*)>=280) c FULL JOIN ("+qMinClim(true)+") m ON m.jour=c.jour ORDER BY jour";
+  const qDailyAll="SELECT COALESCE(c.jour,m.jour) AS jour,c.temp_max,m.temp_min FROM (SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,MAX(tempHigh) AS temp_max FROM `meteo_cintre.raw_data_v2`"+WT+" GROUP BY jour) c FULL JOIN ("+qMinClim(false)+") m ON m.jour=c.jour ORDER BY jour";
   const qTmaxH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure FROM `meteo_cintre.raw_data_v2`"+WT+" ORDER BY tempHigh DESC LIMIT 10";
-  const qTminH="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure FROM `meteo_cintre.raw_data_v2`"+WT+" ORDER BY tempLow ASC LIMIT 10";
+  const qTminH="SELECT "+CLIM_DAY+" AS jour,CONCAT(FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris'),IF(DATE(obsTimeUtc,'Europe/Paris')<"+CLIM_DAY+",' (veille)','')) AS heure FROM `meteo_cintre.raw_data_v2`"+WM+" AND tempLow IS NOT NULL ORDER BY tempLow ASC LIMIT 10";
   // ---- Précipitations ----
   const qPrecipJour="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,SUM(somme) AS total FROM `meteo_cintre.raw_data_v2`"+WP+" GROUP BY jour ORDER BY total DESC LIMIT 10";
   const qPrecip5min="SELECT DATE(obsTimeUtc, 'Europe/Paris') AS jour,FORMAT_TIMESTAMP('%H:%M',obsTimeUtc,'Europe/Paris') AS heure,somme AS val FROM `meteo_cintre.raw_data_v2`"+WP+" QUALIFY ROW_NUMBER() OVER (PARTITION BY jour ORDER BY val DESC)=1 ORDER BY val DESC LIMIT 10";
@@ -345,7 +352,7 @@ async function loadData(){
       '<div class="section-title">🌡️ Températures extrêmes</div>'
       +'<div class="card-grid">'
       +recordCard('🥵','red','Température max absolue',r0.val,'°C',r0.jour,r0.heure,t10TempMax,null,false)
-      +recordCard('🥶','blue','Température min absolue',r1.val,'°C',r1.jour,r1.heure,t10TempMin,null,false)
+      +recordCard('🥶','blue','Température min absolue',r1.val,'°C',r1.jour,r1.heure,t10TempMin,NOTE_MIN_CLIM,false)
       +'</div>'
       +'<div class="section-title">📊 Moyennes journalières</div>'
       +'<div class="card-grid">'
@@ -361,7 +368,7 @@ async function loadData(){
       +'</div>'
       +'<div class="section-title">🎯 Records atypiques</div>'
       +'<div class="card-grid">'
-      +recordCard('🌡️','amber','Température minimum la plus élevée',r7.val,'°C',r7.jour,null,t10JMaxMin,null,false)
+      +recordCard('🌡️','amber','Température minimum la plus élevée',r7.val,'°C',r7.jour,null,t10JMaxMin,NOTE_MIN_CLIM,false)
       +recordCard('🌡️','purple','Température maximum la plus basse',r6.val,'°C',r6.jour,null,t10JMinMax,null,false)
       +'</div>';
 
