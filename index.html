@@ -115,6 +115,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .kpi-sub-item span { display: block; font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi-sub-ecart { margin-top: 1px; }
 .kpi-sub-single { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+/* Réglette « où se situe aujourd'hui » : du record bas au record haut du mois */
+:root { --rb-track: #eceef2; --rb-tick: #7d828c; --rb-dot: #d9480f; --rb-norm: #1a1a2e; }
+:root[data-theme="dark"] { --rb-track: #2c2e38; --rb-tick: #8d92a0; --rb-dot: #ff8a5c; --rb-norm: #f2f2f5; }
+.rb-group { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.rb-caption { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5; }
+.rb-caption i { font-style: normal; font-weight: 700; }
+.rb-caption .k-dot { color: var(--rb-dot); }
+.rb { margin-top: 8px; }
+.rb-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+.rb-head b { color: var(--text-primary); }
+.rb-track { position: relative; height: 8px; margin: 6px 0 4px; background: var(--rb-track); border-radius: 4px; }
+.rb-track > i { position: absolute; top: 50%; transform: translate(-50%,-50%); display: block; }
+.rb-tick { width: 1.5px; height: 8px; background: var(--rb-tick); }
+.rb-norm { width: 3px; height: 16px; background: var(--rb-norm); border-radius: 1px; }
+.rb-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--rb-dot); border: 2px solid var(--card-bg); box-shadow: 0 0 0 1px var(--rb-dot); }
+.rb-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
 .kpi-sub-single b { color: var(--text-value); font-weight: 500; }
 .rec-badge { display:inline-block; font-size:8px; font-weight:700; padding:1px 5px; border-radius:8px; margin-left:3px; vertical-align:middle; white-space:nowrap; }
 .rec-badge.rec-10 { background:#eef0ff; color:#8890c0; font-weight:600; }
@@ -213,8 +229,8 @@ const RECORD_PREFS_KEY = 'meteo_temp_record_prefs_v2';
 const RECORD_TYPES = [
   {id:'max',    key:'temp_max',       icon:'🔺', label:'Record max', color:'#e8a020'},
   {id:'min',    key:'temp_min',       icon:'🔻', label:'Record min', color:'#764ba2'},
-  {id:'minmax', key:'temp_max_min',   icon:'🔼', label:'Min max',    color:'#2f9e44'},
-  {id:'maxmin', key:'temp_min_chaud', icon:'🔽', label:'Max min',    color:'#c2185b'},
+  {id:'minmax', key:'temp_max_min',   icon:'🔽', label:'Max min',    color:'#2f9e44'},
+  {id:'maxmin', key:'temp_min_chaud', icon:'🔼', label:'Min max',    color:'#c2185b'},
   {id:'moymax', key:'temp_moy',       icon:'🔥', label:'Moy max',    color:'#8d6e63'},
   {id:'moymin', key:'temp_moy_min',   icon:'❄️', label:'Moy min',    color:'#0277bd'}
 ];
@@ -421,6 +437,44 @@ function recordBadge(recCache, key, value, asc) {
   return rankBadge(rMonth, 'mois', dirIcon) + rankBadge(rAll, 'all-time', dirIcon);
 }
 
+// Réglette « où se situe aujourd'hui » : axe du record bas au record haut du mois
+// (top 10 déjà en cache → aucune requête en plus). Graduations = top 10 de chaque bout,
+// trait = normale du jour, point = valeur du jour. L'axe s'élargit si la valeur bat un record.
+function rangeBar(o) {
+  const lowList = o.lowList || [], highList = o.highList || [];
+  const lo = o.lo !== undefined ? o.lo : lowList[0];
+  const hi = highList[0];
+  if (lo === undefined || hi === undefined || o.value === null || o.value === undefined || !isFinite(o.value)) return '';
+  const pts = [lo, hi, o.value].concat(o.normale !== undefined && o.normale !== null ? [o.normale] : []);
+  const min = Math.min.apply(null, pts), max = Math.max.apply(null, pts);
+  const span = (max - min) || 1;
+  const pos = function(v) { return ((v - min) / span * 100).toFixed(1) + '%'; };
+  const d = o.digits === undefined ? 1 : o.digits;
+  const ticks = lowList.slice(1).concat(highList.slice(1))
+    .map(function(v) { return '<i class="rb-tick" style="left:' + pos(v) + '"></i>'; }).join('');
+  const norm = (o.normale !== undefined && o.normale !== null)
+    ? '<i class="rb-norm" style="left:' + pos(o.normale) + '"></i>' : '';
+  const newRec = o.value > hi ? ' — nouveau record haut' : (o.lo === undefined && o.value < lo ? ' — nouveau record bas' : '');
+  const aria = o.label + ' : ' + fmt(o.value, d) + ' ' + o.unit + newRec
+    + '. Record bas du mois ' + fmt(lo, d) + ', record haut ' + fmt(hi, d)
+    + (norm ? ', normale du jour ' + fmt(o.normale, d) : '') + '.';
+  return '<div class="rb" role="img" aria-label="' + aria + '">'
+    + '<div class="rb-head" aria-hidden="true"><span>' + o.label + '</span><b>' + fmt(o.value, d) + ' ' + o.unit + newRec + '</b></div>'
+    + '<div class="rb-track" aria-hidden="true">' + ticks + norm + '<i class="rb-dot" style="left:' + pos(o.value) + '"></i></div>'
+    + '<div class="rb-scale" aria-hidden="true"><span>' + fmt(lo, d) + '</span>'
+    + (norm ? '<span>normale ' + fmt(o.normale, d) + '</span>' : '') + '<span>' + fmt(hi, d) + '</span></div>'
+    + '</div>';
+}
+
+function rangeGroup(bars) {
+  const html = bars.join('');
+  if (!html) return '';
+  const mois = new Intl.DateTimeFormat('fr-FR', {month:'long', timeZone:'Europe/Paris'}).format(new Date());
+  const deMois = (/^[aeiouâ]/.test(mois) ? "d'" : 'de ') + mois;
+  return '<div class="rb-group"><div class="rb-caption">Position dans les records ' + deMois + ' (toutes années) · '
+    + '<i class="k-dot">●</i> aujourd\'hui · <i>┃</i> normale · <i>|</i> top 10</div>' + html + '</div>';
+}
+
 // Bandeau "highlight" : pioche, parmi toutes les métriques déjà classées pour les
 // badges KPI, celle qui a le meilleur rang aujourd'hui (peu importe laquelle) et
 // construit une phrase. À rang égal, un record all-time l'emporte sur un record du mois.
@@ -499,8 +553,8 @@ function hexToRgba(hex, alpha) {
 const TEMP_RECORD_NOTE = '<details class="chart-note"><summary>ⓘ Comment ça marche <span class="arr">▾</span></summary><div class="chart-note-body">'
   +'Coche un type pour afficher son top 10 sur le graphique (ligne #1 en couleur pleine, les 9 suivantes en dégradé).<br>'
   +'🔺 Record max · 🔻 Record min<br>'
-  +'🔼 Min max = jour le plus « frais » (le plus petit maximum jamais atteint)<br>'
-  +'🔽 Max min = nuit la plus « douce » (le plus grand minimum jamais atteint)<br>'
+  +'🔽 Max min = jour le plus « frais » (le plus petit maximum jamais atteint)<br>'
+  +'🔼 Min max = nuit la plus « douce » (le plus grand minimum jamais atteint)<br>'
   +'🔥 Moy max · ❄️ Moy min = moyenne journalière la plus élevée / la plus basse<br>'
   +'Mois = ce mois calendaire, toutes années confondues · Total = record absolu'
   +'</div></details>';
@@ -1102,6 +1156,7 @@ async function loadData() {
     const bIntensite = recordBadge(recCache, 'intensite', n(k.pluie_rate_max), false);
     const bRafale = recordBadge(recCache, 'rafale', n(k.vent_rafale_max), false);
     const bVentMoy = recordBadge(recCache, 'vent_moy', n(k.vent_moy_jour), false);
+    const _rd = recCache.data || {};
 
     const bestHighlight = pickHighlight(recCache, {
       temp_max: n(k.temp_max), temp_max_min: n(k.temp_max), temp_min: n(k.temp_min), temp_min_chaud: n(k.temp_min),
@@ -1140,6 +1195,11 @@ async function loadData() {
           <div style="font-size:9px;color:var(--text-muted);margin-top:5px;line-height:1.4;">
             Écarts vs normales Rennes-Saint-Jacques (réf. 1991–2020, Météo-France)
           </div>
+          ${rangeGroup([
+            rangeBar({label:'Temp max', unit:'°C', value:n(k.temp_max), lowList:_rd.temp_max_min_month, highList:_rd.temp_max_month, normale:_nrJour.tx}),
+            rangeBar({label:'Temp min', unit:'°C', value:n(k.temp_min), lowList:_rd.temp_min_month, highList:_rd.temp_min_chaud_month, normale:_nrJour.tn}),
+            rangeBar({label:'Temp moy', unit:'°C', value:n(k.temp_moy), lowList:_rd.temp_moy_min_month, highList:_rd.temp_moy_month, normale:_nrJour.tm})
+          ])}
         </div>
         <div class="main-temp-icon">${weatherIcon(tempActuelle, k.pluie_total, k.vent_moy_jour, k.vent_rafale_max)}</div>
       </div>
@@ -1156,6 +1216,9 @@ async function loadData() {
             <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_mois))} mm</b><span>Cumul du mois</span><div class="kpi-sub-ecart">${_ecartPluieMois}</div></div>
             <div class="kpi-sub-item"><b>${fmt(n(cumul.pluie_annee))} mm</b><span>Cumul de l'année</span><div class="kpi-sub-ecart">${_ecartPluieAnnee}</div></div>
           </div>
+          ${rangeGroup([
+            rangeBar({label:'Pluie du jour', unit:'mm', value:n(k.pluie_total), lo:0, highList:_rd.pluie_jour_month})
+          ])}
         </div>
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon teal">💨</div><div class="kpi-card-title">Vent</div></div>
@@ -1165,6 +1228,10 @@ async function loadData() {
             <div class="kpi-sub-item"><b>${fmt(k.vent_rafale_max)} km/h${bRafale}</b><span>Rafale max (56s)</span></div>
             <div class="kpi-sub-item"><b>${ex.heure_vent_max||'—'}</b><span>heure rafale max</span></div>
           </div>
+          ${rangeGroup([
+            rangeBar({label:'Vent moyen', unit:'km/h', value:n(k.vent_moy_jour), lo:0, highList:_rd.vent_moy_month}),
+            rangeBar({label:'Rafale max', unit:'km/h', value:n(k.vent_rafale_max), lo:0, highList:_rd.rafale_month})
+          ])}
         </div>
         <div class="kpi-card">
           <div class="kpi-card-header"><div class="kpi-icon amber">☀️</div><div class="kpi-card-title">Ensoleillement</div></div>
